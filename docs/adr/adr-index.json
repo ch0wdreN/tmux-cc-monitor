@@ -1,0 +1,61 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-05-06",
+  "tags": {
+    "architecture": {
+      "description": "全体アーキテクチャ・システム設計パターン",
+      "adrs": [
+        {
+          "id": "20260506-adopt-per-pane-json-state-files",
+          "title": "状態管理に per-pane JSON ファイル方式を採用する",
+          "status": "accepted",
+          "date": "2026-05-06",
+          "file": "docs/adr/20260506-adopt-per-pane-json-state-files.md",
+          "summary": "ペインごとに独立した JSON ファイルで状態を保持。書き込み競合を構造的に排除し、flock 等のロック機構を不要にする。"
+        },
+        {
+          "id": "20260506-no-background-daemon-in-v0-0-1",
+          "title": "v0.0.1 ではバックグラウンド常駐デーモンを置かない",
+          "status": "accepted",
+          "date": "2026-05-06",
+          "file": "docs/adr/20260506-no-background-daemon-in-v0-0-1.md",
+          "summary": "プロセスは hook と popup 起動の 2 経路のみ。idle 時リソース 0、lifecycle 管理を回避し最小実装に保つ。後続バージョンで再評価余地あり。"
+        },
+        {
+          "id": "20260506-use-claude-code-hooks-for-state",
+          "title": "状態取得は Claude Code hooks に依拠し、tmux capture-pane でのポーリングはしない",
+          "status": "accepted",
+          "date": "2026-05-06",
+          "file": "docs/adr/20260506-use-claude-code-hooks-for-state.md",
+          "summary": "イベント駆動で状態を取得。capture-pane ベースの文字列マッチ方式は脆弱性とコストの観点で不採用。"
+        }
+      ]
+    },
+    "dependency": {
+      "description": "外部ライブラリ・サービス・依存関係選定",
+      "adrs": [
+        {
+          "id": "20260506-use-claude-code-hooks-for-state",
+          "title": "状態取得は Claude Code hooks に依拠し、tmux capture-pane でのポーリングはしない",
+          "status": "accepted",
+          "date": "2026-05-06",
+          "file": "docs/adr/20260506-use-claude-code-hooks-for-state.md",
+          "summary": "Claude Code 本体の hooks 仕様に依存することを明示的に受け入れ、独立した状態推定ロジックは持たない。"
+        }
+      ]
+    },
+    "database": {
+      "description": "DB 選定・スキーマ設計・データ管理",
+      "adrs": [
+        {
+          "id": "20260506-adopt-per-pane-json-state-files",
+          "title": "状態管理に per-pane JSON ファイル方式を採用する",
+          "status": "accepted",
+          "date": "2026-05-06",
+          "file": "docs/adr/20260506-adopt-per-pane-json-state-files.md",
+          "summary": "ペインごとに独立した JSON ファイルで状態を保持。書き込み競合を構造的に排除し、flock 等のロック機構を不要にする。"
+        }
+      ]
+    }
+  }
+}
