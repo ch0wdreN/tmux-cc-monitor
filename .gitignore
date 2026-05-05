@@ -1,0 +1,27 @@
+# Compiled binaries (root-relative so the cmd/ subdirs of the same name aren't ignored)
+/tmux-cc-monitor
+/probe-hook
+
+# Task build output and checksum cache
+/bin/
+/.task/
+
+# Release artifacts
+dist/
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+
+# Go toolchain artifacts
+*.test
+*.out
+coverage.html
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
