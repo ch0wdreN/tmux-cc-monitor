@@ -3,8 +3,10 @@
 A personal CLI tool for managing multiple Claude Code sessions running in parallel inside tmux.
 Claude Code hooks fire on every `UserPromptSubmit`, `Notification`, and `Stop` event and write
 per-pane state files; a bubbletea TUI launched from a tmux popup reads those files, shows you
-which panes are waiting for permission and which are idle, and lets you send text to any of them
-with `tmux send-keys` — all without leaving your current pane.
+which panes are waiting for permission and which are idle, and — from v0.1.0 — lets you mirror
+the chosen pane right inside the popup so you can read its current state and forward keys
+(arrows, Enter, free text, Ctrl modifiers) directly to it. Close the popup and you are back at
+the pane you came from, untouched.
 
 ## Requirements
 
@@ -96,18 +98,46 @@ Merge the following into `~/.claude/settings.json` (or the project-local `.claud
 
 ## Usage
 
+The TUI is two-stage from v0.1.0: a **list** view to pick a session, and a **mirror** view that
+shows the chosen pane and forwards your keystrokes to it.
+
 1. Open the popup from any tmux pane with `Ctrl-b C-g` (or whatever prefix you use).
-2. The TUI shows two sections: panes waiting for permission and panes that are idle/stopped.
-   Each row shows the pane ID, project name (cwd basename), and the time of the last event.
-3. Navigate with arrow keys, select a pane, type your message, and press Enter.
-4. The text is sent to the target pane via `tmux send-keys`. The popup closes and you are
-   returned to the pane you came from.
-5. Press `q` or `Esc` at any time to close the popup without sending.
+2. **List view**: shows sections for *waiting for permission*, *waiting (other)*, *running*, and
+   *idle*, with each row showing the pane target (`session:window.pane`), project name (cwd
+   basename), the time of the last event, and the last hook message in one line.
+   - `↑` `↓` / `j` `k` to move
+   - `r` to reload (re-runs cleanup and re-reads state files)
+   - `Enter` to enter mirror view for the selected pane
+   - `q` / `Esc` to close the popup (you return to the pane you came from)
+3. **Mirror view**: renders the target pane's current screen via `tmux capture-pane` and
+   forwards keystrokes back to it via `tmux send-keys`. Use this to read what the pane is
+   waiting on — the permission prompt, an `AskUserQuestion` choice list, the assistant's last
+   reply — and respond in place.
+   - Arrow keys, `Enter`, printable text (including Japanese), `Tab`, `Backspace`, `Delete`,
+     `PageUp`/`PageDown`, function keys `F2`–`F12`, and `Ctrl`/`Alt` modifiers all forward to
+     the target pane
+   - The mirror auto-refreshes every 500 ms and immediately after each keystroke
+   - `q` / `Esc` returns to the list view (does **not** close the popup)
+   - `F1` is reserved for future popup help and is not forwarded
+4. Closing the popup (second `q`/`Esc` from the list, or `Ctrl+C` anywhere) restores you to the
+   original pane with no change to its size or focus — the popup is a tmux client overlay,
+   not a real pane switch.
+
+### Permission prompts and AskUserQuestion
+
+Both are handled in the mirror view:
+
+- **Permission**: read the tool name and arguments shown in the prompt, then send `1` /
+  `2` / `Enter` (whatever the prompt asks).
+- **AskUserQuestion**: navigate the choice list with arrow keys and confirm with `Enter`.
 
 ## Architecture
 
-See [docs/design-doc/20260506_tmux_cc_monitor_design.md](docs/design-doc/20260506_tmux_cc_monitor_design.md)
-for the full architecture, data schema, error handling strategy, and ADR links.
+- v0.0.1 (state files, hook handler, list view, send-keys): see
+  [docs/design-doc/20260506_tmux_cc_monitor_design.md](docs/design-doc/20260506_tmux_cc_monitor_design.md).
+- v0.1.0 popup mirror (the two-stage TUI, capture-pane forwarding, `r` reload): see
+  [docs/design-doc/20260506_tmux_cc_monitor_popup_mirror_design.md](docs/design-doc/20260506_tmux_cc_monitor_popup_mirror_design.md).
+- All accepted ADRs are indexed in [docs/adr/adr-index.json](docs/adr/adr-index.json).
 
 ## License
 
