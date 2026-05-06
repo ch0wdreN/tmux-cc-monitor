@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_updated": "2026-05-06",
+  "last_updated": "2026-05-07",
   "tags": {
     "architecture": {
       "description": "全体アーキテクチャ・システム設計パターン",
@@ -44,6 +44,14 @@
           "date": "2026-05-06",
           "file": "docs/adr/20260506-allow-capture-pane-for-popup-display.md",
           "summary": "ADR-0003 を維持しつつ、popup mirror の表示パスでは capture-pane を許容する用途分離。state 判定経路に混入しないことを grep AC で再発防止。"
+        },
+        {
+          "id": "20260507-decouple-view-redraw-from-state-reload",
+          "title": "経過時間表示用の view redraw tick を state reload と分離する",
+          "status": "accepted",
+          "date": "2026-05-07",
+          "file": "docs/adr/20260507-decouple-view-redraw-from-state-reload.md",
+          "summary": "view 表示更新専用の 60s 周期 tick を新設し state reload と分離。I/O を伴わない軽量 tick で経過時間が止まって見える問題を解消。ADR-no-daemon の精神を維持しつつ UI の生存信号を出す。"
         }
       ]
     },
@@ -91,6 +99,22 @@
           "date": "2026-05-06",
           "file": "docs/adr/20260506-allow-capture-pane-for-popup-display.md",
           "summary": "ADR-0003 を維持しつつ、popup mirror の表示パスでは capture-pane を許容する用途分離。state 判定経路に混入しないことを grep AC で再発防止。"
+        },
+        {
+          "id": "20260507-forward-q-in-mirror-mode",
+          "title": "Mirror mode で q を target pane に forward し、list 復帰は esc 専用とする",
+          "status": "accepted",
+          "date": "2026-05-07",
+          "file": "docs/adr/20260507-forward-q-in-mirror-mode.md",
+          "summary": "popup-mirror ADR の q 予約規定を撤廃し、q を target pane に forward。list 復帰は esc 専用に限定。git log/less/vim 等で q 操作が崩れる問題を解消する keymap 補強 ADR。"
+        },
+        {
+          "id": "20260507-decouple-view-redraw-from-state-reload",
+          "title": "経過時間表示用の view redraw tick を state reload と分離する",
+          "status": "accepted",
+          "date": "2026-05-07",
+          "file": "docs/adr/20260507-decouple-view-redraw-from-state-reload.md",
+          "summary": "view 表示更新専用の 60s 周期 tick を新設し state reload と分離。I/O を伴わない軽量 tick で経過時間が止まって見える問題を解消。ADR-no-daemon の精神を維持しつつ UI の生存信号を出す。"
         }
       ]
     }
