@@ -22,9 +22,9 @@ type Status string
 const (
 	// StatusRunning indicates Claude Code is actively processing a prompt.
 	StatusRunning Status = "running"
-	// StatusWaitingPermission indicates Claude Code is waiting for the user to
-	// grant or deny a permission request.
-	StatusWaitingPermission Status = "waiting_permission"
+	// StatusWaitingAction indicates Claude Code is waiting for a user action
+	// (e.g. permission_prompt, elicitation_dialog, or similar interactive events).
+	StatusWaitingAction Status = "waiting_action"
 	// StatusWaitingOther indicates Claude Code sent a Notification that is not
 	// a permission request (e.g. idle notice, long-running task notice).
 	StatusWaitingOther Status = "waiting_other"
