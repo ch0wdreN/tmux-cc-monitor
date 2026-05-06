@@ -1,12 +1,19 @@
 ---
 date: 2026-05-07
-status: accepted
+status: superseded
 tags: [ux]
 supersedes: ""
 related:
   - docs/design-doc/20260506_tmux_cc_monitor_v002_refactor_design.md
   - docs/adr/20260506-self-implement-popup-mirror.md
+  - docs/adr/20260507-mirror-quit-via-ctrl-g.md
 ---
+
+> **Note (2026-05-07)**: 本 ADR は同日付の ADR `20260507-mirror-quit-via-ctrl-g.md` で supersede された。
+> Claude Code 自身が ESC を割り込みキーとして使うため、mirror mode で ESC を popup 側が吸う設計は不適切と判明。
+> 離脱キーは `Ctrl+G` に変更され、ESC は target pane に forward されることになった。
+> 詳細は新 ADR を参照。
+
 
 # Mirror mode で `q` を target pane に forward し、list 復帰は `esc` 専用とする
 

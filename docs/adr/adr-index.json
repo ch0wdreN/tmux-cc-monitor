@@ -103,10 +103,10 @@
         {
           "id": "20260507-forward-q-in-mirror-mode",
           "title": "Mirror mode で q を target pane に forward し、list 復帰は esc 専用とする",
-          "status": "accepted",
+          "status": "superseded",
           "date": "2026-05-07",
           "file": "docs/adr/20260507-forward-q-in-mirror-mode.md",
-          "summary": "popup-mirror ADR の q 予約規定を撤廃し、q を target pane に forward。list 復帰は esc 専用に限定。git log/less/vim 等で q 操作が崩れる問題を解消する keymap 補強 ADR。"
+          "summary": "popup-mirror ADR の q 予約規定を撤廃し、q を target pane に forward。list 復帰は esc 専用に限定。git log/less/vim 等で q 操作が崩れる問題を解消する keymap 補強 ADR。発行同日に Ctrl+G 離脱 ADR で supersede された。"
         },
         {
           "id": "20260507-decouple-view-redraw-from-state-reload",
@@ -115,6 +115,14 @@
           "date": "2026-05-07",
           "file": "docs/adr/20260507-decouple-view-redraw-from-state-reload.md",
           "summary": "view 表示更新専用の 60s 周期 tick を新設し state reload と分離。I/O を伴わない軽量 tick で経過時間が止まって見える問題を解消。ADR-no-daemon の精神を維持しつつ UI の生存信号を出す。"
+        },
+        {
+          "id": "20260507-mirror-quit-via-ctrl-g",
+          "title": "Mirror mode の離脱キーを Ctrl+G に変更し、ESC を target pane に forward する",
+          "status": "accepted",
+          "date": "2026-05-07",
+          "file": "docs/adr/20260507-mirror-quit-via-ctrl-g.md",
+          "summary": "前 ADR (forward-q) の esc 専用離脱が Claude Code の ESC 割り込みを塞ぐと判明。q と Esc の両方を target pane に forward し、離脱は Ctrl+G に変更 (popup を開く tmux binding と対称)。前 ADR を supersede。"
         }
       ]
     }

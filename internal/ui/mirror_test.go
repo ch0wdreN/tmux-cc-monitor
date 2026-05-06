@@ -1,13 +1,11 @@
 package ui
 
-// mirror_test.go covers the Phase 4 acceptance criteria from Design Doc §5:
+// mirror_test.go covers the mirror-mode key mapping acceptance criteria:
 //
-//  - mapKey('q') returns actionSendLiteral so q is forwarded to the target pane.
-//  - mapKey(Esc) returns actionQuit so Esc exits mirror mode back to the list.
-//  - viewMirror output contains "esc" and does NOT contain "q quit".
-//
-// These tests are the canonical regression guard for the v0.0.2 behaviour
-// change that removed q as a mirror-exit shortcut.
+//   - mapKey('q') returns actionSendLiteral so q is forwarded to the target pane.
+//   - mapKey(Esc) returns actionSendKeyName("Escape") so Esc is forwarded to the target pane.
+//   - mapKey(Ctrl+G) returns actionQuit to exit mirror mode back to the list.
+//   - viewMirror output contains "ctrl-g" and does NOT contain "esc back".
 
 import (
 	"strings"
@@ -30,20 +28,35 @@ func TestMapKey_QForwardedToTargetPane(t *testing.T) {
 	}
 }
 
-// TestMapKey_EscExitsMirrorMode verifies that pressing Esc in mirror mode
-// produces actionQuit, transitioning back to the list view.
-func TestMapKey_EscExitsMirrorMode(t *testing.T) {
+// TestMapKey_EscForwardedToTargetPane verifies that pressing Esc in mirror mode
+// produces actionSendKeyName("Escape"), forwarding Esc to the target pane rather
+// than exiting mirror mode. Claude Code uses Esc as an interrupt signal, so mirror
+// must not intercept it.
+func TestMapKey_EscForwardedToTargetPane(t *testing.T) {
 	msg := tea.KeyMsg{Type: tea.KeyEsc}
 	got := mapKey(msg)
-	if got.action != actionQuit {
-		t.Errorf("mapKey(Esc).action = %v, want actionQuit", got.action)
+	if got.action != actionSendKeyName {
+		t.Errorf("mapKey(Esc).action = %v, want actionSendKeyName", got.action)
+	}
+	if got.keyName != "Escape" {
+		t.Errorf("mapKey(Esc).keyName = %q, want %q", got.keyName, "Escape")
 	}
 }
 
-// TestMirrorFooter_EscPresentQQuitAbsent verifies the mirror mode footer
-// contains "esc" (the advertised exit shortcut) and does NOT contain
-// "q quit" (which was removed in v0.0.2 when q became a forwarded key).
-func TestMirrorFooter_EscPresentQQuitAbsent(t *testing.T) {
+// TestMapKey_CtrlGExitsMirrorMode verifies that pressing Ctrl+G in mirror mode
+// produces actionQuit, transitioning back to the list view.
+func TestMapKey_CtrlGExitsMirrorMode(t *testing.T) {
+	msg := tea.KeyMsg{Type: tea.KeyCtrlG}
+	got := mapKey(msg)
+	if got.action != actionQuit {
+		t.Errorf("mapKey(Ctrl+G).action = %v, want actionQuit", got.action)
+	}
+}
+
+// TestMirrorFooter_CtrlGPresent verifies the mirror mode footer contains "ctrl-g"
+// (the advertised exit shortcut) and does NOT contain "esc back" (Esc is now
+// forwarded to the target pane, so it must not appear as an exit hint).
+func TestMirrorFooter_CtrlGPresent(t *testing.T) {
 	m := newModel(nil, 0)
 	m.mode = modeMirror
 	m.mirror = &mirrorState{paneID: "%test"}
@@ -51,10 +64,10 @@ func TestMirrorFooter_EscPresentQQuitAbsent(t *testing.T) {
 
 	out := strings.ToLower(m.View())
 
-	if strings.Contains(out, "q quit") {
-		t.Error(`mirror view contains "q quit"; want it removed (q is forwarded to target pane in v0.0.2)`)
+	if !strings.Contains(out, "ctrl-g") {
+		t.Error(`mirror view does not contain "ctrl-g"; want "ctrl-g → list" or similar footer text`)
 	}
-	if !strings.Contains(out, "esc") {
-		t.Error(`mirror view does not contain "esc"; want "esc back" or similar footer text`)
+	if strings.Contains(out, "esc back") {
+		t.Error(`mirror view contains "esc back"; want it removed (esc is forwarded to target pane)`)
 	}
 }

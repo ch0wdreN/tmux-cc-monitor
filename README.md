@@ -115,12 +115,13 @@ chosen pane and forwards your keystrokes to it.
    forwards keystrokes back to it via `tmux send-keys`. Use this to read what the pane is
    waiting on — the permission prompt, an `AskUserQuestion` choice list, the assistant's last
    reply — and respond in place.
-   - Arrow keys, `Enter`, printable text (including Japanese and `q`), `Tab`, `Backspace`,
+   - Arrow keys, `Enter`, printable text (including Japanese and `q`), `Esc`, `Tab`, `Backspace`,
      `Delete`, `PageUp`/`PageDown`, function keys `F2`–`F12`, and `Ctrl`/`Alt` modifiers all
-     forward to the target pane
+     forward to the target pane. In particular both `q` and `Esc` are forwarded so Claude Code's
+     ESC interrupt and `q` exits in `git log` / `less` / `vim` work normally
    - The mirror auto-refreshes every 500 ms and immediately after each keystroke
-   - `Esc` returns to the list view (`q` is **not** a close key here — it is forwarded to the
-     target pane so `git log`, `less`, `vim`, etc. work normally)
+   - `Ctrl+G` returns to the list view — symmetric with the tmux binding that opens the popup
+     (`Ctrl-b C-g` opens, `Ctrl+G` returns to list, second `q`/`Esc` from list closes)
    - `F1` is reserved for future popup help and is not forwarded
 4. Closing the popup (`q`/`Esc` from the list, or `Ctrl+C` anywhere) restores you to the
    original pane with no change to its size or focus — the popup is a tmux client overlay,

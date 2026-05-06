@@ -147,12 +147,13 @@ func TestTruncateMessage(t *testing.T) {
 
 // --- mirror key mapping tests ---
 
-// TestMapKeyReservedKeys verifies that Esc and F1 are NOT forwarded.
-// Note: q is intentionally NOT in this list — since v0.0.2 q is forwarded
-// to the target pane as a literal character (actionSendLiteral).
+// TestMapKeyReservedKeys verifies that Ctrl+G and F1 are NOT forwarded to the
+// target pane. Note: both q and Esc are intentionally NOT in this list —
+// they are forwarded to the target pane (q as actionSendLiteral, Esc as
+// actionSendKeyName("Escape")).
 func TestMapKeyReservedKeys(t *testing.T) {
 	reserved := []tea.KeyMsg{
-		{Type: tea.KeyEsc},
+		{Type: tea.KeyCtrlG},
 		{Type: tea.KeyF1},
 	}
 	for _, msg := range reserved {
@@ -164,12 +165,13 @@ func TestMapKeyReservedKeys(t *testing.T) {
 	}
 }
 
-// TestMapKeyQuitActions verifies that Esc produces actionQuit.
-// Note: q is NOT in this list — since v0.0.2 q is forwarded to the target
-// pane as actionSendLiteral. Only Esc exits mirror mode.
+// TestMapKeyQuitActions verifies that Ctrl+G produces actionQuit.
+// Note: q and Esc are NOT in this list — both are forwarded to the target pane
+// (q as actionSendLiteral, Esc as actionSendKeyName("Escape")). Only Ctrl+G
+// exits mirror mode.
 func TestMapKeyQuitActions(t *testing.T) {
 	tests := []tea.KeyMsg{
-		{Type: tea.KeyEsc},
+		{Type: tea.KeyCtrlG},
 	}
 	for _, msg := range tests {
 		result := mapKey(msg)
@@ -786,16 +788,16 @@ type errCapture string
 
 func (e errCapture) Error() string { return string(e) }
 
-// TestMirrorQuitTriggersReload verifies that exiting mirror mode via Esc
+// TestMirrorQuitTriggersReload verifies that exiting mirror mode via Ctrl+G
 // transitions to modeList and fires a non-nil reload Cmd, so the list view is
 // refreshed before being shown again.
-// Note: q no longer exits mirror mode (v0.0.2); it is forwarded to the target pane.
+// Note: q and Esc no longer exit mirror mode; both are forwarded to the target pane.
 func TestMirrorQuitTriggersReload(t *testing.T) {
 	cases := []struct {
 		desc string
 		msg  tea.KeyMsg
 	}{
-		{"Esc exits mirror with reload", tea.KeyMsg{Type: tea.KeyEsc}},
+		{"Ctrl+G exits mirror with reload", tea.KeyMsg{Type: tea.KeyCtrlG}},
 	}
 
 	for _, tc := range cases {

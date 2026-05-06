@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `idle_prompt`, `auth_success` → `idle`
   - `elicitation_response`, `elicitation_complete` → `running`
   - 未知の subtype → `waiting_other`（fallback、Claude Code 仕様変更検出器）
-- **Mirror mode**: `q` キーを target pane へ forward するように変更。これまで `q` は popup を閉じる予約キーだったため `git log` / `less` / `vim` 等の対話操作が崩れていた。mirror mode から list view への復帰は **`Esc` のみ**。
+- **Mirror mode**: `q` と `Esc` の両方を target pane へ forward するように変更。これまで `q` は popup を閉じる予約キーで、`Esc` も popup 側が吸う仕様だったため、`git log` / `less` / `vim` 等の `q` 操作と Claude Code の ESC 割り込みが mirror 経由で機能しなかった。mirror mode から list view への復帰は **`Ctrl+G`** (popup を開く tmux binding と対称) に変更。
 - **UI tick**: 経過時間表示を 60 秒間隔の独立 redraw tick で更新。秒粒度を廃止し `<1m / Nm / Nh / Nd` に粗化。state reload (`r` キー) とは別経路で I/O を伴わない軽量更新。
 
 ### Added
@@ -27,9 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - v0.0.2 リファクタ Design Doc を `docs/design-doc/20260506_tmux_cc_monitor_v002_refactor_design.md` に追加。
-- ADR 2 件を新規記録:
-  - `docs/adr/20260507-forward-q-in-mirror-mode.md`
+- ADR 3 件を新規記録:
+  - `docs/adr/20260507-forward-q-in-mirror-mode.md` (発行同日に下記の ADR で superseded)
   - `docs/adr/20260507-decouple-view-redraw-from-state-reload.md`
+  - `docs/adr/20260507-mirror-quit-via-ctrl-g.md` (ESC を target pane に forward し、`Ctrl+G` で list 復帰へ)
 
 ## [v0.0.1] - 2026-05-06
 
