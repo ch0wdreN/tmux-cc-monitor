@@ -31,9 +31,9 @@ tmux-cc-monitor は「どの Claude Code セッションが permission 待ちか
 | `Notification` (その他) | `waiting_other` |
 | `Stop` | `idle` |
 
-`Notification` を一律で `waiting` に倒すと、permission 待ち以外の通知 (idle 通知、長時間応答通知など) が popup の「permission 待ち」セクションに紛れ込む。これは v0.0.1 の核体験「permission 待ちを popup で見つけて即送信」を機能不全にするため、payload を見て二段に分類する。具体的な判定キー（`message` の内容、`title`、permission 系を示すフィールドの有無など）は Phase 0 の実機調査で確定し、本 ADR と Design Doc §8.3 に書き戻す。
+`Notification` を一律で `waiting` に倒すと、permission 待ち以外の通知 (idle 通知、長時間応答通知など) が popup の「permission 待ち」セクションに紛れ込む。これは v0.0.1 の核体験「permission 待ちを popup で見つけて即送信」を機能不全にするため、payload を見て二段に分類する。
 
-判定が確定するまでは v0.0.1 では `last_message` に hook payload の `message` フィールド（あるいは相当物）をそのまま入れる。要約や表示整形は v0.0.1 以降のバージョンで対応する。
+実機確認 (2026-05-06) の結果、Claude Code の `Notification` payload には `notification_type` フィールドが含まれ、取りうる値は `permission_prompt` / `idle_prompt` / `auth_success` / `elicitation_dialog` / `elicitation_complete` / `elicitation_response` の enum 値であることが判明した。文字列マッチではなく **`notification_type === "permission_prompt"` の等価比較** で判別する。`tool_name` および `tool_input` も payload に含まれるため、`last_message` は `<tool_name>: <tool_input compact JSON>` の形式で組み立てる。要約や表示整形のさらなる強化は v0.0.1 以降のバージョンで対応する。
 
 ## Alternatives Considered
 
@@ -54,7 +54,7 @@ tmux-cc-monitor は「どの Claude Code セッションが permission 待ちか
 
 - Claude Code の hooks 仕様変更（イベント名・引数・呼び出しタイミングの変更）に追従が必要になる。ラッパー的位置付けである以上不可避と割り切る
 - hook の登録漏れ（グローバル設定にしないと一部プロジェクトで状態が取得できない）など、ユーザー側の設定運用が必要
-- `Notification` の細分化判定を payload に依存するため、payload キーの仕様変更で誤分類が再発するリスクがある。`raw_payload` を保持して後追い修正できる構造にする
+- `Notification` の細分化判定が `notification_type` フィールドに依存するため、Claude Code 側でこの enum 値が変更・拡張された場合に誤分類が発生しうる。`raw_payload` を保持して後追い修正できる構造にする
 - hook バイナリが落ちた場合に状態が古いまま残る可能性がある。`hook-errors.log` への記録と UI フッタでの観測で対処する（Design Doc §9）
 
 ### References
