@@ -525,6 +525,217 @@ func TestMapKeySwitchOrderGuarantee(t *testing.T) {
 	}
 }
 
+// mirrorModel returns a model already in mirror mode targeting the given pane.
+// All Update tests for mirror-mode messages start from this state.
+func mirrorModel(paneID string) model {
+	return model{
+		mode:   modeMirror,
+		mirror: &mirrorState{paneID: paneID},
+		width:  80,
+		height: 24,
+	}
+}
+
+// TestUpdateWindowSizeInMirrorTriggersRecapture verifies that a resize event
+// in mirror mode produces a non-nil Cmd (which schedules a fresh capture-pane
+// against the new dimensions) and that the model fields are updated.
+func TestUpdateWindowSizeInMirrorTriggersRecapture(t *testing.T) {
+	m := mirrorModel("%42")
+	next, cmd := m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+	nm := next.(model)
+
+	if nm.width != 100 || nm.height != 40 {
+		t.Errorf("dimensions not updated: width=%d height=%d, want 100/40", nm.width, nm.height)
+	}
+	if cmd == nil {
+		t.Error("expected non-nil capture Cmd after resize in mirror mode")
+	}
+}
+
+// TestUpdateWindowSizeInListIsNoCmd verifies that resizes in list mode do not
+// launch any capture work — the next View call repaints with new dimensions.
+func TestUpdateWindowSizeInListIsNoCmd(t *testing.T) {
+	m := model{mode: modeList, width: 80, height: 24}
+	next, cmd := m.Update(tea.WindowSizeMsg{Width: 120, Height: 50})
+	nm := next.(model)
+
+	if nm.width != 120 || nm.height != 50 {
+		t.Errorf("dimensions not updated: width=%d height=%d, want 120/50", nm.width, nm.height)
+	}
+	if cmd != nil {
+		t.Error("expected nil Cmd in list-mode resize, got non-nil")
+	}
+}
+
+// TestUpdatePaneAliveDeadShowsBannerAndSchedulesReturn verifies that when the
+// PaneAlive check reports false, the banner is set and a return-to-list Cmd
+// is scheduled.
+func TestUpdatePaneAliveDeadShowsBannerAndSchedulesReturn(t *testing.T) {
+	m := mirrorModel("%42")
+	next, cmd := m.Update(paneAliveResultMsg{alive: false})
+	nm := next.(model)
+
+	if nm.mirror == nil {
+		t.Fatal("mirror state was cleared too early; expected dead-banner phase")
+	}
+	if !nm.mirror.deadBanner {
+		t.Error("deadBanner not set on alive=false")
+	}
+	if cmd == nil {
+		t.Error("expected non-nil return-to-list Cmd on alive=false")
+	}
+}
+
+// TestUpdatePaneAliveTrueIsNoOp verifies that PaneAlive=true does not change
+// model state or fire any Cmd — the next regular tick handles the next capture.
+func TestUpdatePaneAliveTrueIsNoOp(t *testing.T) {
+	m := mirrorModel("%42")
+	m.mirror.deadBanner = false
+
+	next, cmd := m.Update(paneAliveResultMsg{alive: true})
+	nm := next.(model)
+
+	if nm.mirror.deadBanner {
+		t.Error("deadBanner must remain false on alive=true")
+	}
+	if cmd != nil {
+		t.Error("expected nil Cmd on alive=true; tick handles next capture")
+	}
+}
+
+// TestUpdateReturnToListClearsMirror verifies that the post-banner timeout
+// transitions out of mirror mode and clears mirror state.
+func TestUpdateReturnToListClearsMirror(t *testing.T) {
+	m := mirrorModel("%42")
+	m.mirror.deadBanner = true
+
+	next, cmd := m.Update(returnToListMsg{})
+	nm := next.(model)
+
+	if nm.mode != modeList {
+		t.Errorf("mode=%v, want modeList", nm.mode)
+	}
+	if nm.mirror != nil {
+		t.Errorf("mirror state must be cleared, got %+v", nm.mirror)
+	}
+	if cmd != nil {
+		t.Error("returnToListMsg must not fire any further Cmd")
+	}
+}
+
+// TestUpdateMirrorTickInMirrorReschedules verifies that a tick in mirror mode
+// returns a non-nil Cmd (which is tea.Batch of a re-tick + a re-capture).
+func TestUpdateMirrorTickInMirrorReschedules(t *testing.T) {
+	m := mirrorModel("%42")
+	_, cmd := m.Update(mirrorTickMsg{})
+	if cmd == nil {
+		t.Error("expected non-nil Cmd (Batch of next tick + capture) in mirror mode")
+	}
+}
+
+// TestUpdateMirrorTickInListIsNoCmd verifies that an in-flight tick that
+// arrives after the user already returned to list mode does not reschedule
+// itself — the tick chain must stop when modeMirror exits.
+func TestUpdateMirrorTickInListIsNoCmd(t *testing.T) {
+	m := model{mode: modeList, width: 80, height: 24}
+	_, cmd := m.Update(mirrorTickMsg{})
+	if cmd != nil {
+		t.Error("tick after exit must not produce a Cmd; tick chain leaked")
+	}
+}
+
+// TestUpdateCaptureResultErrorChecksPaneAlive verifies that a capture failure
+// triggers a PaneAlive check, which is how mirror discovers a dead pane.
+func TestUpdateCaptureResultErrorChecksPaneAlive(t *testing.T) {
+	m := mirrorModel("%42")
+	_, cmd := m.Update(captureResultMsg{err: errCapture("boom")})
+	if cmd == nil {
+		t.Error("expected non-nil PaneAlive Cmd after capture error")
+	}
+}
+
+// TestUpdateCaptureResultSuccessUpdatesContent verifies that a successful
+// capture updates mirror.content and clears any prior warnMsg.
+func TestUpdateCaptureResultSuccessUpdatesContent(t *testing.T) {
+	m := mirrorModel("%42")
+	m.mirror.warnMsg = "stale warn"
+
+	next, cmd := m.Update(captureResultMsg{content: "hello world"})
+	nm := next.(model)
+
+	if nm.mirror.content != "hello world" {
+		t.Errorf("content=%q, want %q", nm.mirror.content, "hello world")
+	}
+	if nm.mirror.warnMsg != "" {
+		t.Errorf("warnMsg should be cleared after successful capture, got %q", nm.mirror.warnMsg)
+	}
+	if cmd != nil {
+		t.Error("successful capture must not fire any further Cmd")
+	}
+}
+
+// TestUpdateSendErrSetsBanner verifies that a send-keys failure surfaces in
+// the mirror's sendErr field for the View to render.
+func TestUpdateSendErrSetsBanner(t *testing.T) {
+	m := mirrorModel("%42")
+	next, _ := m.Update(sendErrMsg("send failed: timeout"))
+	nm := next.(model)
+
+	if nm.mirror.sendErr != "send failed: timeout" {
+		t.Errorf("sendErr=%q, want %q", nm.mirror.sendErr, "send failed: timeout")
+	}
+}
+
+// TestUpdateMirrorSendLiteralReturnsCmd verifies that a printable-rune key in
+// mirror mode produces a Cmd that will run SendLiteral + re-capture.
+func TestUpdateMirrorSendLiteralReturnsCmd(t *testing.T) {
+	m := mirrorModel("%42")
+	next, cmd := m.updateMirror(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	nm := next.(model)
+
+	if nm.mode != modeMirror {
+		t.Errorf("mode=%v, want modeMirror (printable rune must not exit mirror)", nm.mode)
+	}
+	if cmd == nil {
+		t.Error("expected non-nil Cmd for actionSendLiteral")
+	}
+}
+
+// TestUpdateMirrorSendKeyNameReturnsCmd verifies that a key-name key (e.g. Up)
+// produces a Cmd that will run SendKeyName + re-capture.
+func TestUpdateMirrorSendKeyNameReturnsCmd(t *testing.T) {
+	m := mirrorModel("%42")
+	next, cmd := m.updateMirror(tea.KeyMsg{Type: tea.KeyUp})
+	nm := next.(model)
+
+	if nm.mode != modeMirror {
+		t.Errorf("mode=%v, want modeMirror (Up must not exit mirror)", nm.mode)
+	}
+	if cmd == nil {
+		t.Error("expected non-nil Cmd for actionSendKeyName")
+	}
+}
+
+// TestUpdateMirrorDropSetsWarn verifies that a dropped key (e.g. F13) sets a
+// non-empty warnMsg in mirror state and returns no Cmd.
+func TestUpdateMirrorDropSetsWarn(t *testing.T) {
+	m := mirrorModel("%42")
+	next, cmd := m.updateMirror(tea.KeyMsg{Type: tea.KeyF13})
+	nm := next.(model)
+
+	if nm.mirror.warnMsg == "" {
+		t.Error("expected warnMsg to be set after F13 drop")
+	}
+	if cmd != nil {
+		t.Error("dropped key must not fire any Cmd")
+	}
+}
+
+// errCapture is a small typed error for TestUpdateCaptureResultErrorChecksPaneAlive.
+type errCapture string
+
+func (e errCapture) Error() string { return string(e) }
+
 // TestMirrorQuitTriggersReload verifies that exiting mirror mode via q/Esc both
 // transitions to modeList and fires a non-nil reload Cmd, so the list view is
 // refreshed before being shown again.
