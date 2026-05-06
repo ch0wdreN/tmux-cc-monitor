@@ -171,12 +171,20 @@ func classifyEvent(event string, payload map[string]any) (state.Status, string) 
 
 	case "Notification":
 		notifType := stringField(payload, "notification_type")
-		if notifType == "permission_prompt" {
+		switch notifType {
+		case "permission_prompt":
 			msg := composePermissionMessage(payload)
-			return state.StatusWaitingPermission, truncateRunes(msg, maxMessageRunes)
+			return state.StatusWaitingAction, truncateRunes(msg, maxMessageRunes)
+		case "elicitation_dialog":
+			return state.StatusWaitingAction, truncateRunes(notifType, maxMessageRunes)
+		case "elicitation_response", "elicitation_complete":
+			return state.StatusRunning, truncateRunes(notifType, maxMessageRunes)
+		case "idle_prompt", "auth_success": // informational; no immediate user action required
+			return state.StatusIdle, truncateRunes(notifType, maxMessageRunes)
+		default:
+			// Unknown notification_type — fallback for Claude Code spec changes.
+			return state.StatusWaitingOther, truncateRunes(notifType, maxMessageRunes)
 		}
-		// Any other Notification subtype.
-		return state.StatusWaitingOther, truncateRunes(notifType, maxMessageRunes)
 
 	case "Stop":
 		return state.StatusIdle, ""

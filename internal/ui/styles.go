@@ -6,13 +6,18 @@ var (
 	// styleHeader is used for the top-level application header.
 	styleHeader = lipgloss.NewStyle().Bold(true)
 
-	// styleSectionPermission is the section header for waiting_permission.
-	styleSectionPermission = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("9")) // bright red
+	// styleSectionAction is the section header for waiting_action.
+	styleSectionAction = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("14")) // bright cyan
 
-	// styleSectionWaitingOther is the section header for waiting_other.
-	styleSectionWaitingOther = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("11")) // bright yellow
+	// styleSectionRunning is the section header for running status.
+	styleSectionRunning = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("10")) // bright green
 
-	// styleSectionNeutral is the section header for running and idle.
+	// styleSectionWaiting is the section header for waiting_other status. It is
+	// highlighted in yellow so unknown notification_type subtypes (the only
+	// reason a pane lands here in v0.0.2+) are visible at a glance.
+	styleSectionWaiting = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("11")) // bright yellow
+
+	// styleSectionNeutral is the section header for idle status.
 	styleSectionNeutral = lipgloss.NewStyle().Bold(true).Faint(true)
 
 	// styleNone is the "(none)" placeholder when a section has no items.
@@ -26,18 +31,6 @@ var (
 
 	// styleErrorBanner is used for the send-failure banner in input mode.
 	styleErrorBanner = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
-
-	// styleBadgePermission is the badge for waiting_permission status.
-	styleBadgePermission = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
-
-	// styleBadgeWaiting is the badge for waiting_other status.
-	styleBadgeWaiting = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
-
-	// styleBadgeRunning is the badge for running status.
-	styleBadgeRunning = lipgloss.NewStyle().Foreground(lipgloss.Color("10")) // bright green
-
-	// styleBadgeIdle is the badge for idle status.
-	styleBadgeIdle = lipgloss.NewStyle().Faint(true)
 
 	// --- mirror mode styles ---
 

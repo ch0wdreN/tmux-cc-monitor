@@ -3,10 +3,10 @@
 A personal CLI tool for managing multiple Claude Code sessions running in parallel inside tmux.
 Claude Code hooks fire on every `UserPromptSubmit`, `Notification`, and `Stop` event and write
 per-pane state files; a bubbletea TUI launched from a tmux popup reads those files, shows you
-which panes are waiting for permission and which are idle, and — from v0.1.0 — lets you mirror
-the chosen pane right inside the popup so you can read its current state and forward keys
-(arrows, Enter, free text, Ctrl modifiers) directly to it. Close the popup and you are back at
-the pane you came from, untouched.
+which panes need user action and which are idle, and — since v0.0.2 — lets you mirror the
+chosen pane right inside the popup so you can read its current state and forward keys (arrows,
+Enter, free text, Ctrl modifiers, including `q`) directly to it. Close the popup and you are
+back at the pane you came from, untouched.
 
 ## Requirements
 
@@ -98,13 +98,15 @@ Merge the following into `~/.claude/settings.json` (or the project-local `.claud
 
 ## Usage
 
-The TUI is two-stage from v0.1.0: a **list** view to pick a session, and a **mirror** view that
-shows the chosen pane and forwards your keystrokes to it.
+The TUI is two-stage: a **list** view to pick a session, and a **mirror** view that shows the
+chosen pane and forwards your keystrokes to it.
 
 1. Open the popup from any tmux pane with `Ctrl-b C-g` (or whatever prefix you use).
-2. **List view**: shows sections for *waiting for permission*, *waiting (other)*, *running*, and
-   *idle*, with each row showing the pane target (`session:window.pane`), project name (cwd
-   basename), the time of the last event, and the last hook message in one line.
+2. **List view**: shows sections for *Action Waiting*, *Waiting (other)*, *Running*, and
+   *Idle*, with each row showing the pane target (`session:window.pane`), project name (cwd
+   basename), elapsed time since the last event, and the last hook message in one line.
+   Elapsed time is rendered at minute granularity (`<1m` / `Nm` / `Nh` / `Nd`) and refreshes
+   on its own 60-second tick without re-reading state files.
    - `↑` `↓` / `j` `k` to move
    - `r` to reload (re-runs cleanup and re-reads state files)
    - `Enter` to enter mirror view for the selected pane
@@ -113,13 +115,15 @@ shows the chosen pane and forwards your keystrokes to it.
    forwards keystrokes back to it via `tmux send-keys`. Use this to read what the pane is
    waiting on — the permission prompt, an `AskUserQuestion` choice list, the assistant's last
    reply — and respond in place.
-   - Arrow keys, `Enter`, printable text (including Japanese), `Tab`, `Backspace`, `Delete`,
-     `PageUp`/`PageDown`, function keys `F2`–`F12`, and `Ctrl`/`Alt` modifiers all forward to
-     the target pane
+   - Arrow keys, `Enter`, printable text (including Japanese and `q`), `Esc`, `Tab`, `Backspace`,
+     `Delete`, `PageUp`/`PageDown`, function keys `F2`–`F12`, and `Ctrl`/`Alt` modifiers all
+     forward to the target pane. In particular both `q` and `Esc` are forwarded so Claude Code's
+     ESC interrupt and `q` exits in `git log` / `less` / `vim` work normally
    - The mirror auto-refreshes every 500 ms and immediately after each keystroke
-   - `q` / `Esc` returns to the list view (does **not** close the popup)
+   - `Ctrl+G` returns to the list view — symmetric with the tmux binding that opens the popup
+     (`Ctrl-b C-g` opens, `Ctrl+G` returns to list, second `q`/`Esc` from list closes)
    - `F1` is reserved for future popup help and is not forwarded
-4. Closing the popup (second `q`/`Esc` from the list, or `Ctrl+C` anywhere) restores you to the
+4. Closing the popup (`q`/`Esc` from the list, or `Ctrl+C` anywhere) restores you to the
    original pane with no change to its size or focus — the popup is a tmux client overlay,
    not a real pane switch.
 
@@ -135,8 +139,11 @@ Both are handled in the mirror view:
 
 - v0.0.1 (state files, hook handler, list view, send-keys): see
   [docs/design-doc/20260506_tmux_cc_monitor_design.md](docs/design-doc/20260506_tmux_cc_monitor_design.md).
-- v0.1.0 popup mirror (the two-stage TUI, capture-pane forwarding, `r` reload): see
+- v0.0.2 popup mirror (the two-stage TUI, capture-pane forwarding, `r` reload): see
   [docs/design-doc/20260506_tmux_cc_monitor_popup_mirror_design.md](docs/design-doc/20260506_tmux_cc_monitor_popup_mirror_design.md).
+- v0.0.2 refactor (status rename to *Action Waiting*, `q` forwarded in mirror, decoupled view
+  redraw tick): see
+  [docs/design-doc/20260506_tmux_cc_monitor_v002_refactor_design.md](docs/design-doc/20260506_tmux_cc_monitor_v002_refactor_design.md).
 - All accepted ADRs are indexed in [docs/adr/adr-index.json](docs/adr/adr-index.json).
 
 ## License

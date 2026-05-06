@@ -128,6 +128,29 @@ func ReadAll() (states []*State, warnings []string, err error) {
 			continue
 		}
 
+		// pre-v0.0.2 value sweep: "waiting_permission" was renamed to "waiting_action".
+		const legacyStatusWaitingPermission = "waiting_permission"
+		if string(s.Status) == legacyStatusWaitingPermission {
+			warnings = append(warnings, fmt.Sprintf(
+				"state: ReadAll: skipping %q: legacy status %q detected; skipped (use of v0.0.2 sweep policy)",
+				fpath, legacyStatusWaitingPermission,
+			))
+			continue
+		}
+
+		// Defensive: any status value the UI does not know how to group must
+		// be skipped with a warning rather than silently dropped by groupByStatus.
+		switch s.Status {
+		case StatusWaitingAction, StatusWaitingOther, StatusRunning, StatusIdle:
+			// valid; fall through to append
+		default:
+			warnings = append(warnings, fmt.Sprintf(
+				"state: ReadAll: skipping %q: unknown status %q",
+				fpath, s.Status,
+			))
+			continue
+		}
+
 		states = append(states, &s)
 	}
 

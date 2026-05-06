@@ -143,12 +143,6 @@ func mapKey(msg tea.KeyMsg) keyMapResult {
 	// We resolve the base key first, then prefix "M-" if Alt is set.
 
 	switch msg.Type {
-	// --- popup-reserved keys (not forwarded) ---
-	// KeyEsc == KeyEscape == KeyCtrlOpenBracket (all equal 27).
-	// Quit mirror mode; do not forward Esc to the target pane.
-	case tea.KeyEsc:
-		return keyMapResult{action: actionQuit}
-
 	// --- F-key range ---
 	case tea.KeyF1:
 		// TODO: popup help overlay reserved; not yet implemented.
@@ -225,8 +219,11 @@ func mapKey(msg tea.KeyMsg) keyMapResult {
 		return altWrap(msg, "C-e")
 	case tea.KeyCtrlF:
 		return altWrap(msg, "C-f")
+	// KeyEsc == KeyEscape == KeyCtrlOpenBracket (all equal 27): forward to target pane.
+	case tea.KeyEsc:
+		return keyMapResult{action: actionSendKeyName, keyName: "Escape"}
 	case tea.KeyCtrlG:
-		return altWrap(msg, "C-g")
+		return keyMapResult{action: actionQuit}
 	case tea.KeyCtrlH:
 		// Not reached for literal Backspace (keyDEL=127), but reached for
 		// terminals that send BS (8) as backspace. Map to BSpace for consistency.
@@ -346,10 +343,6 @@ func mapKey(msg tea.KeyMsg) keyMapResult {
 			return keyMapResult{action: actionReserved}
 		}
 		text := string(msg.Runes)
-		// 'q' is reserved as quit in mirror mode.
-		if !msg.Alt && text == "q" {
-			return keyMapResult{action: actionQuit}
-		}
 		if msg.Alt && len(msg.Runes) == 1 {
 			// Alt+rune: send as key name "M-<rune>".
 			return keyMapResult{action: actionSendKeyName, keyName: "M-" + string(msg.Runes[0])}
@@ -420,7 +413,7 @@ func (m model) viewMirror() string {
 	var b strings.Builder
 
 	// Header line.
-	header := fmt.Sprintf("mirror: %s  (q/Esc → list)", m.mirror.paneID)
+	header := fmt.Sprintf("mirror: %s  (ctrl-g → list)", m.mirror.paneID)
 	b.WriteString(styleMirrorHeader.Render(header))
 	b.WriteString("\n")
 
@@ -444,7 +437,7 @@ func (m model) viewMirror() string {
 		footerText = m.mirror.warnMsg
 		b.WriteString(styleMirrorWarn.Render(footerText))
 	default:
-		footerText = "q/Esc → list · keys forwarded to target pane"
+		footerText = "ctrl-g → list · all keys (incl. q, esc) forwarded to target pane"
 		b.WriteString(styleMirrorFooter.Render(footerText))
 	}
 

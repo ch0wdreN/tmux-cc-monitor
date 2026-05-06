@@ -52,6 +52,10 @@ type reloadDoneMsg struct {
 	errlogCount int
 }
 
+// redrawTickMsg fires periodically to refresh the elapsed-time display
+// without performing any I/O. State reload is a separate path (r key).
+type redrawTickMsg struct{}
+
 // --- list data structures ---
 
 // section groups panes by a single status value.
@@ -62,18 +66,18 @@ type section struct {
 }
 
 // groupByStatus returns the 4 sections in the fixed display order:
-// waiting_permission → waiting_other → running → idle.
+// waiting_action → waiting_other → running → idle.
 // Each section's items are sorted by UpdatedAt descending (most recent first).
 func groupByStatus(states []*state.State) [4]section {
 	sections := [4]section{
-		{title: "Permission Waiting", status: state.StatusWaitingPermission},
+		{title: "Action Waiting", status: state.StatusWaitingAction},
 		{title: "Waiting (other)", status: state.StatusWaitingOther},
 		{title: "Running", status: state.StatusRunning},
 		{title: "Idle", status: state.StatusIdle},
 	}
 	for _, s := range states {
 		switch s.Status {
-		case state.StatusWaitingPermission:
+		case state.StatusWaitingAction:
 			sections[0].items = append(sections[0].items, s)
 		case state.StatusWaitingOther:
 			sections[1].items = append(sections[1].items, s)
@@ -92,14 +96,14 @@ func groupByStatus(states []*state.State) [4]section {
 }
 
 // humanizeDuration converts a duration to a compact human-readable string.
-// Rules: <60s → "Ns", <60m → "Nm", <24h → "Nh", else "Nd".
+// Rules: <1m → "<1m", <1h → "Nm", <24h → "Nh", else "Nd".
 func humanizeDuration(d time.Duration) string {
 	if d < 0 {
 		d = 0
 	}
 	switch {
 	case d < time.Minute:
-		return fmt.Sprintf("%ds", int(d.Seconds()))
+		return "<1m"
 	case d < time.Hour:
 		return fmt.Sprintf("%dm", int(d.Minutes()))
 	case d < 24*time.Hour:
@@ -132,21 +136,6 @@ func truncateMessage(s string, max int) string {
 	}
 	b.WriteRune('…')
 	return b.String()
-}
-
-// statusBadge returns a short display badge for a status.
-func statusBadge(status state.Status) string {
-	switch status {
-	case state.StatusWaitingPermission:
-		return styleBadgePermission.Render("[PERM]")
-	case state.StatusWaitingOther:
-		return styleBadgeWaiting.Render("[WAIT]")
-	case state.StatusRunning:
-		return styleBadgeRunning.Render("[RUN] ")
-	case state.StatusIdle:
-		return styleBadgeIdle.Render("[IDLE]")
-	}
-	return "[????]"
 }
 
 // --- bubbletea model ---
@@ -227,9 +216,18 @@ func reloadStates() tea.Msg {
 	return reloadDoneMsg{states: states, errlogCount: errCount}
 }
 
+// scheduleRedrawTick returns a Cmd that fires redrawTickMsg after 60 seconds.
+// It follows the same pattern as scheduleMirrorTick in mirror.go.
+func scheduleRedrawTick() tea.Cmd {
+	return tea.Tick(60*time.Second, func(time.Time) tea.Msg { return redrawTickMsg{} })
+}
+
 // Init satisfies tea.Model.
 func (m model) Init() tea.Cmd {
-	return tea.SetWindowTitle("tmux-cc-monitor")
+	return tea.Batch(
+		tea.SetWindowTitle("tmux-cc-monitor"),
+		scheduleRedrawTick(),
+	)
 }
 
 // Update satisfies tea.Model.
@@ -253,6 +251,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = len(m.flatItems) - 1
 		}
 		return m, nil
+
+	case redrawTickMsg:
+		// No state change; re-rendering the View re-evaluates time.Now() so
+		// elapsed-time columns are refreshed. Schedule the next tick.
+		return m, scheduleRedrawTick()
 
 	case captureResultMsg:
 		if m.mode == modeMirror && m.mirror != nil {
@@ -386,7 +389,7 @@ func (m model) viewList() string {
 	b.WriteString("\n\n")
 
 	now := time.Now()
-	msgWidth := max(m.width-52, 10)
+	msgWidth := max(m.width-46, 10)
 
 	// Track the flat-item index as we iterate sections.
 	flatIdx := 0
@@ -395,9 +398,11 @@ func (m model) viewList() string {
 		header := fmt.Sprintf("── %s ──", sec.title)
 		switch i {
 		case 0:
-			b.WriteString(styleSectionPermission.Render(header))
+			b.WriteString(styleSectionAction.Render(header))
 		case 1:
-			b.WriteString(styleSectionWaitingOther.Render(header))
+			b.WriteString(styleSectionWaiting.Render(header))
+		case 2:
+			b.WriteString(styleSectionRunning.Render(header))
 		default:
 			b.WriteString(styleSectionNeutral.Render(header))
 		}
@@ -410,7 +415,6 @@ func (m model) viewList() string {
 		} else {
 			for _, item := range sec.items {
 				project := filepath.Base(item.CWD)
-				badge := statusBadge(item.Status)
 				elapsed := humanizeDuration(now.Sub(item.UpdatedAt))
 				msg := truncateMessage(strings.ReplaceAll(item.LastMessage, "\n", " "), msgWidth)
 
@@ -422,15 +426,14 @@ func (m model) viewList() string {
 					target += " [" + item.WindowName + "]"
 				}
 
-				line := fmt.Sprintf("  %-26s %-12s %s %5s — %s",
+				line := fmt.Sprintf("  %-26s %-12s %5s — %s",
 					truncateMessage(target, 26),
 					truncateMessage(project, 12),
-					badge,
 					elapsed,
 					msg,
 				)
 				// Pad to full visible width for reverse-video highlight.
-				// lipgloss.Width strips ANSI escapes so the badge's styling
+				// lipgloss.Width strips ANSI escapes so any styling
 				// does not inflate len() and shrink the padding.
 				visible := lipgloss.Width(line)
 				if visible < m.width {
