@@ -28,6 +28,22 @@
           "date": "2026-05-06",
           "file": "docs/adr/20260506-use-claude-code-hooks-for-state.md",
           "summary": "イベント駆動で状態を取得。capture-pane ベースの文字列マッチ方式は脆弱性とコストの観点で不採用。"
+        },
+        {
+          "id": "20260506-self-implement-popup-mirror",
+          "title": "popup 内ミラーは自前実装 (capture-pane + send-keys) で行う",
+          "status": "accepted",
+          "date": "2026-05-06",
+          "file": "docs/adr/20260506-self-implement-popup-mirror.md",
+          "summary": "popup 内ミラーは tmux attach ではなく capture-pane + send-keys で自前実装。同 session 内 attach 時の画面サイズ衝突を回避し、元 pane に副作用を出さない。"
+        },
+        {
+          "id": "20260506-allow-capture-pane-for-popup-display",
+          "title": "popup mirror の描画用途に限り capture-pane の利用を許容する",
+          "status": "accepted",
+          "date": "2026-05-06",
+          "file": "docs/adr/20260506-allow-capture-pane-for-popup-display.md",
+          "summary": "ADR-0003 を維持しつつ、popup mirror の表示パスでは capture-pane を許容する用途分離。state 判定経路に混入しないことを grep AC で再発防止。"
         }
       ]
     },
@@ -54,6 +70,27 @@
           "date": "2026-05-06",
           "file": "docs/adr/20260506-adopt-per-pane-json-state-files.md",
           "summary": "ペインごとに独立した JSON ファイルで状態を保持。書き込み競合を構造的に排除し、flock 等のロック機構を不要にする。"
+        }
+      ]
+    },
+    "ux": {
+      "description": "UI/UX・フロントエンド設計",
+      "adrs": [
+        {
+          "id": "20260506-self-implement-popup-mirror",
+          "title": "popup 内ミラーは自前実装 (capture-pane + send-keys) で行う",
+          "status": "accepted",
+          "date": "2026-05-06",
+          "file": "docs/adr/20260506-self-implement-popup-mirror.md",
+          "summary": "popup 内ミラーは tmux attach ではなく capture-pane + send-keys で自前実装。同 session 内 attach 時の画面サイズ衝突を回避し、元 pane に副作用を出さない。"
+        },
+        {
+          "id": "20260506-allow-capture-pane-for-popup-display",
+          "title": "popup mirror の描画用途に限り capture-pane の利用を許容する",
+          "status": "accepted",
+          "date": "2026-05-06",
+          "file": "docs/adr/20260506-allow-capture-pane-for-popup-display.md",
+          "summary": "ADR-0003 を維持しつつ、popup mirror の表示パスでは capture-pane を許容する用途分離。state 判定経路に混入しないことを grep AC で再発防止。"
         }
       ]
     }
