@@ -35,3 +35,17 @@ tasks:
       - install -m 0755 {{.BUILD_DIR}}/probe-hook {{.INSTALL_DIR}}/probe-hook
       - 'echo "Installed to {{.INSTALL_DIR}}"'
       - 'echo ''Add to PATH if not already - export PATH="{{.INSTALL_DIR}}:$PATH"'''
+
+  test:
+    desc: Run all unit tests
+    cmds:
+      - go test ./...
+
+  check-state-purity:
+    desc: Verify capture-pane is not referenced in state-classification paths (ADR-0003)
+    cmds:
+      - bash scripts/check-no-capture-pane-in-state.sh
+
+  verify:
+    desc: Build, test, and verify state-classification purity
+    deps: [build, test, check-state-purity]
