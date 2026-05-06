@@ -53,8 +53,9 @@ v0.0.1 リリース後の実利用を通じて以下の不満が浮上した:
 
 ## 5. 受け入れ基準 (Acceptance Criteria)
 
-- [ ] 見出しが `Action Waiting`、バッジが `[ACTION]` で表示される (`internal/ui/ui_test.go` で検証)
-- [ ] `Action Waiting` セクション/バッジが cyan(14) bold で描画される (style 定数 grep で確認)
+- [ ] 見出しが `Action Waiting` で表示される。行末尾のステータスバッジは出力されない (`internal/ui/ui_test.go` で検証)
+- [ ] `Action Waiting` セクション見出しが cyan(14) bold で描画される (style 定数 grep で確認)
+- [ ] `Running` セクション見出しが bright green (color "10") bold で描画される (`internal/ui/ui_test.go` で検証 / style 定数 grep で確認)
 - [ ] `state.StatusWaitingAction` が定義され、`StatusWaitingPermission` は grep ヒット 0 件
 - [ ] state JSON 値が `"waiting_action"` で書かれる (`internal/hook/hook_test.go` で確認)
 - [ ] `state.ReadAll` が旧値 `"waiting_permission"` を読んだとき errlog に warn を append し、当該 state を skip する (`internal/state/state_test.go` で検証)
@@ -77,8 +78,8 @@ v0.0.1 リリース後の実利用を通じて以下の不満が浮上した:
 | `internal/state/state.go` | `Status` 定数リネーム / 値変更 / 旧値の取り扱いコメント |
 | `internal/state/io.go` | `ReadAll` で旧値 `"waiting_permission"` 検出時に errlog warn + skip |
 | `internal/hook/hook.go` | `classifyEvent` の Notification 分岐を §6.5 の表のとおりに刷新 |
-| `internal/ui/styles.go` | `styleSectionPermission` を cyan(14) bold へ / `styleSectionWaitingOther` を `styleSectionNeutral` 利用に置換 / `styleBadgePermission` リネーム |
-| `internal/ui/ui.go` | section title `"Permission Waiting"` → `"Action Waiting"` / バッジ `[PERM]` → `[ACTION]` / 60s redraw tick 追加 / `humanizeDuration` 粒度変更 / footer help 更新 |
+| `internal/ui/styles.go` | `styleSectionPermission` → `styleSectionAction` (cyan 14 bold) / `styleSectionRunning` を新設 (bright green 10 bold) / `styleSectionWaitingOther` を削除し `styleSectionNeutral` で代替 / 行バッジ用 `styleBadgeAction` `styleBadgeWaiting` `styleBadgeRunning` `styleBadgeIdle` を全削除 (バッジ自体撤廃) |
+| `internal/ui/ui.go` | section title `"Permission Waiting"` → `"Action Waiting"` / `Running` セクション見出しに `styleSectionRunning` 適用 / 行ごとのステータスバッジ (`[PERM]` / `[ACTION]` / `[WAIT]` / `[RUN]` / `[IDLE]`) を完全削除し `statusBadge` 関数も撤廃。行描画 format と `msgWidth` を追従 / 60s redraw tick 追加 / `humanizeDuration` 粒度変更 / footer help 更新 |
 | `internal/ui/mirror.go` | `q` および `Esc` を target pane に forward (`Esc` は `tmux send-keys ... Escape` として送る)。新たに `Ctrl+G` を唯一の list 復帰キーとして追加。footer 文字列も `ctrl-g → list` に更新 |
 | `internal/ui/ui_test.go` 他 | 上記の検証テスト追加・更新 |
 | `internal/state/state_test.go` | 旧値 skip の挙動テスト追加 |
@@ -86,16 +87,15 @@ v0.0.1 リリース後の実利用を通じて以下の不満が浮上した:
 
 ### 6.2 UI 文言・色変更
 
-| 要素 | Before | After |
+| 要素 | Before (v0.0.1) | After (v0.0.2) |
 |---|---|---|
-| セクション見出し | `Permission Waiting` (red 9, bold) | `Action Waiting` (cyan 14, bold) |
-| バッジ | `[PERM]` (red 9, bold) | `[ACTION]` (cyan 14, bold) |
+| `Action Waiting` 見出し (旧 `Permission Waiting`) | `Permission Waiting` (red 9, bold) | `Action Waiting` (cyan 14, bold) |
 | `Waiting (other)` 見出し | yellow 11, bold | `styleSectionNeutral` (faint) |
-| `Waiting (other)` バッジ | `[WAIT]` (yellow 11) | `[WAIT]` (faint) |
-| `Running` 見出し / バッジ | green 10 | 変更なし |
-| `Idle` 見出し / バッジ | faint | 変更なし |
+| `Running` 見出し | (バッジ green、見出しは `styleSectionNeutral` faint) | **bright green (10), bold** で見出しをハイライト |
+| `Idle` 見出し | faint | 変更なし |
+| 行ごとのステータスバッジ (`[PERM]` / `[WAIT]` / `[RUN]` / `[IDLE]`) | 各行末尾に色付きで表示 | **完全削除**。状態識別はセクション見出しの色に集約 |
 
-(意図) 「ユーザーが対応すべき pane」を一目で識別する機能を維持しつつ、赤の主張を抑える。Running の green と被らない cyan を採る。`Waiting (other)` は fallback 専用化されるため、平時は静かに表示する。
+(意図) 「注目すべき状態」(ユーザーが対応すべき = `Action Waiting` cyan、現在動いている = `Running` green) をセクション見出しの色だけで表現する。`Waiting (other)` と `Idle` は静かな faint。行ごとのバッジは section に分かれている時点でカテゴリ識別が済んでいるため重複情報となり、削除して message 表示領域を広げる。
 
 ### 6.3 Status リネーム
 

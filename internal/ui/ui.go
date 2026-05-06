@@ -138,21 +138,6 @@ func truncateMessage(s string, max int) string {
 	return b.String()
 }
 
-// statusBadge returns a short display badge for a status.
-func statusBadge(status state.Status) string {
-	switch status {
-	case state.StatusWaitingAction:
-		return styleBadgeAction.Render("[ACTION]")
-	case state.StatusWaitingOther:
-		return styleBadgeWaiting.Render("[WAIT]")
-	case state.StatusRunning:
-		return styleBadgeRunning.Render("[RUN] ")
-	case state.StatusIdle:
-		return styleBadgeIdle.Render("[IDLE]")
-	}
-	return "[????]"
-}
-
 // --- bubbletea model ---
 
 // model is the bubbletea application state.
@@ -404,7 +389,7 @@ func (m model) viewList() string {
 	b.WriteString("\n\n")
 
 	now := time.Now()
-	msgWidth := max(m.width-52, 10)
+	msgWidth := max(m.width-46, 10)
 
 	// Track the flat-item index as we iterate sections.
 	flatIdx := 0
@@ -414,6 +399,8 @@ func (m model) viewList() string {
 		switch i {
 		case 0:
 			b.WriteString(styleSectionAction.Render(header))
+		case 2:
+			b.WriteString(styleSectionRunning.Render(header))
 		default:
 			b.WriteString(styleSectionNeutral.Render(header))
 		}
@@ -426,7 +413,6 @@ func (m model) viewList() string {
 		} else {
 			for _, item := range sec.items {
 				project := filepath.Base(item.CWD)
-				badge := statusBadge(item.Status)
 				elapsed := humanizeDuration(now.Sub(item.UpdatedAt))
 				msg := truncateMessage(strings.ReplaceAll(item.LastMessage, "\n", " "), msgWidth)
 
@@ -438,15 +424,14 @@ func (m model) viewList() string {
 					target += " [" + item.WindowName + "]"
 				}
 
-				line := fmt.Sprintf("  %-26s %-12s %s %5s — %s",
+				line := fmt.Sprintf("  %-26s %-12s %5s — %s",
 					truncateMessage(target, 26),
 					truncateMessage(project, 12),
-					badge,
 					elapsed,
 					msg,
 				)
 				// Pad to full visible width for reverse-video highlight.
-				// lipgloss.Width strips ANSI escapes so the badge's styling
+				// lipgloss.Width strips ANSI escapes so any styling
 				// does not inflate len() and shrink the padding.
 				visible := lipgloss.Width(line)
 				if visible < m.width {

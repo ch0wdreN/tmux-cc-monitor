@@ -9,7 +9,10 @@ var (
 	// styleSectionAction is the section header for waiting_action.
 	styleSectionAction = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("14")) // bright cyan
 
-	// styleSectionNeutral is the section header for running and idle.
+	// styleSectionRunning is the section header for running status.
+	styleSectionRunning = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("10")) // bright green
+
+	// styleSectionNeutral is the section header for waiting_other and idle.
 	styleSectionNeutral = lipgloss.NewStyle().Bold(true).Faint(true)
 
 	// styleNone is the "(none)" placeholder when a section has no items.
@@ -23,18 +26,6 @@ var (
 
 	// styleErrorBanner is used for the send-failure banner in input mode.
 	styleErrorBanner = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
-
-	// styleBadgeAction is the badge for waiting_action status.
-	styleBadgeAction = lipgloss.NewStyle().Foreground(lipgloss.Color("14")).Bold(true)
-
-	// styleBadgeWaiting is the badge for waiting_other status.
-	styleBadgeWaiting = lipgloss.NewStyle().Faint(true)
-
-	// styleBadgeRunning is the badge for running status.
-	styleBadgeRunning = lipgloss.NewStyle().Foreground(lipgloss.Color("10")) // bright green
-
-	// styleBadgeIdle is the badge for idle status.
-	styleBadgeIdle = lipgloss.NewStyle().Faint(true)
 
 	// --- mirror mode styles ---
 

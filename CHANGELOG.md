@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **UI**: `Permission Waiting` セクションを `Action Waiting` に改名し、色を bright red から bright cyan に変更。バッジも `[PERM]` から `[ACTION]` へ。「ユーザー対応が必要な pane」をハイライトする役割は維持しつつ、赤の主張を抑える。
+- **UI**: `Permission Waiting` セクションを `Action Waiting` に改名し、色を bright red から bright cyan に変更。「ユーザー対応が必要な pane」をハイライトする役割は維持しつつ、赤の主張を抑える。
+- **UI (Running ハイライト)**: `Running` セクション見出しを bright green (color 10) + bold でハイライト。`Action Waiting` (cyan) と並んで「注目すべき状態」を見出しの色で示し、現在動いている pane も一目で識別できる。
+- **UI (バッジ削除)**: 各行のステータスバッジ (`[PERM]` / `[ACTION]` / `[WAIT]` / `[RUN]` / `[IDLE]`) を完全削除。状態識別はセクション見出しの色で行うようになったため重複情報を整理し、message 表示領域を拡張。
 - **State**: `Status` 定数を `StatusWaitingPermission` から `StatusWaitingAction` にリネーム。state JSON 値も `"waiting_permission"` → `"waiting_action"` に変更（pre-1.0 の特例として `schema_version` は据え置き）。
 - **Hook**: Notification subtype の分類を見直し:
   - `permission_prompt`, `elicitation_dialog` → `waiting_action`

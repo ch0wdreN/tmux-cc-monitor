@@ -736,12 +736,27 @@ func TestUpdateMirrorDropSetsWarn(t *testing.T) {
 	}
 }
 
-// TestStatusBadge_Action verifies that statusBadge for StatusWaitingAction
-// contains "[ACTION]".
-func TestStatusBadge_Action(t *testing.T) {
-	got := statusBadge(state.StatusWaitingAction)
-	if !strings.Contains(got, "[ACTION]") {
-		t.Errorf("statusBadge(StatusWaitingAction) = %q, want to contain %q", got, "[ACTION]")
+// TestViewList_RunningHeaderUsesGreenStyle verifies that viewList renders the
+// "Running" section header using styleSectionRunning (bright green + bold).
+func TestViewList_RunningHeaderUsesGreenStyle(t *testing.T) {
+	now := time.Now()
+	states := []*state.State{
+		{
+			PaneID:    "%10",
+			Status:    state.StatusRunning,
+			CWD:       "/home/user/project",
+			UpdatedAt: now.Add(-2 * time.Minute),
+		},
+	}
+	m := newModel(states, 0)
+	m.width = 120
+	m.height = 40
+
+	output := m.viewList()
+
+	want := styleSectionRunning.Render("── Running ──")
+	if !strings.Contains(output, want) {
+		t.Errorf("viewList() output does not contain styleSectionRunning-rendered header.\nwant substring: %q\ngot: %q", want, output)
 	}
 }
 
