@@ -201,3 +201,93 @@ func tmuxRunStdin(stdin string, args ...string) error {
 	}
 	return nil
 }
+
+// CapturePane returns the last n lines of output from the target pane.
+// It runs `tmux capture-pane -p -J -e -t <paneID> -S -<lines>` and strips
+// any trailing newlines from the result.
+// lines must be > 0; paneID must be non-empty.
+func CapturePane(paneID string, lines int) (string, error) {
+	if paneID == "" {
+		return "", fmt.Errorf("tmuxutil: CapturePane: paneID must not be empty")
+	}
+	if lines <= 0 {
+		return "", fmt.Errorf("tmuxutil: CapturePane: lines must be > 0")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), execTimeout)
+	defer cancel()
+
+	var stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx, "tmux",
+		"capture-pane", "-p", "-J", "-e",
+		"-t", paneID,
+		"-S", fmt.Sprintf("-%d", lines),
+	)
+	cmd.Stderr = &stderr
+
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("tmux capture-pane: %w (stderr: %s)", err, stderr.String())
+	}
+	return strings.TrimRight(string(out), "\n"), nil
+}
+
+// SendLiteral sends text to a target pane in literal mode without appending Enter.
+// It runs `tmux send-keys -t <paneID> -l -- <text>`.
+// If text is empty the call is a no-op and returns nil.
+// paneID must be non-empty.
+func SendLiteral(paneID, text string) error {
+	if paneID == "" {
+		return fmt.Errorf("tmuxutil: SendLiteral: paneID must not be empty")
+	}
+	if text == "" {
+		return nil
+	}
+	if err := tmuxRun("send-keys", "-t", paneID, "-l", "--", text); err != nil {
+		return fmt.Errorf("tmux send-keys (literal): %w", err)
+	}
+	return nil
+}
+
+// SendKeyName sends a single tmux key name (e.g. "Enter", "Up", "C-c") to
+// the target pane. It runs `tmux send-keys -t <paneID> -- <name>`.
+// Both paneID and name must be non-empty. To send multiple keys, call this
+// function once per key.
+func SendKeyName(paneID, name string) error {
+	if paneID == "" {
+		return fmt.Errorf("tmuxutil: SendKeyName: paneID must not be empty")
+	}
+	if name == "" {
+		return fmt.Errorf("tmuxutil: SendKeyName: name must not be empty")
+	}
+	if err := tmuxRun("send-keys", "-t", paneID, "--", name); err != nil {
+		return fmt.Errorf("tmux send-keys (key name): %w", err)
+	}
+	return nil
+}
+
+// paneIDInList reports whether paneID appears in panes.
+// Extracted so tests can exercise the match logic without a live tmux server.
+func paneIDInList(paneID string, panes []Pane) bool {
+	for _, p := range panes {
+		if p.ID == paneID {
+			return true
+		}
+	}
+	return false
+}
+
+// PaneAlive reports whether paneID currently exists on the tmux server.
+// It delegates to ListPanes and checks the result; if ListPanes returns an
+// error that error is returned as-is with bool false.
+// paneID must be non-empty.
+func PaneAlive(paneID string) (bool, error) {
+	if paneID == "" {
+		return false, fmt.Errorf("tmuxutil: PaneAlive: paneID must not be empty")
+	}
+	panes, err := ListPanes()
+	if err != nil {
+		return false, err
+	}
+	return paneIDInList(paneID, panes), nil
+}

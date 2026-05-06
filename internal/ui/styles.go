@@ -38,4 +38,18 @@ var (
 
 	// styleBadgeIdle is the badge for idle status.
 	styleBadgeIdle = lipgloss.NewStyle().Faint(true)
+
+	// --- mirror mode styles ---
+
+	// styleMirrorHeader is the header line shown at the top of mirror mode.
+	styleMirrorHeader = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12")) // bright blue
+
+	// styleMirrorFooter is the footer line shown at the bottom of mirror mode.
+	styleMirrorFooter = lipgloss.NewStyle().Faint(true)
+
+	// styleMirrorWarn is used for drop-key WARN messages in the mirror footer.
+	styleMirrorWarn = lipgloss.NewStyle().Foreground(lipgloss.Color("11")).Bold(true) // bright yellow
+
+	// styleMirrorErrorBanner is used for pane-gone and send-failure banners in mirror mode.
+	styleMirrorErrorBanner = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true) // bright red
 )
