@@ -166,3 +166,109 @@ func TestParsePanesOutput(t *testing.T) {
 		}
 	})
 }
+
+// TestCapturePaneValidation checks that CapturePane rejects invalid arguments
+// without invoking tmux.
+func TestCapturePaneValidation(t *testing.T) {
+	t.Run("empty paneID", func(t *testing.T) {
+		_, err := CapturePane("", 10)
+		if err == nil {
+			t.Fatal("expected error for empty paneID, got nil")
+		}
+	})
+
+	t.Run("lines zero", func(t *testing.T) {
+		_, err := CapturePane("%1", 0)
+		if err == nil {
+			t.Fatal("expected error for lines=0, got nil")
+		}
+	})
+
+	t.Run("lines negative", func(t *testing.T) {
+		_, err := CapturePane("%1", -5)
+		if err == nil {
+			t.Fatal("expected error for lines=-5, got nil")
+		}
+	})
+}
+
+// TestSendLiteralValidation checks that SendLiteral rejects invalid arguments
+// and is a no-op for empty text.
+func TestSendLiteralValidation(t *testing.T) {
+	t.Run("empty paneID", func(t *testing.T) {
+		err := SendLiteral("", "hello")
+		if err == nil {
+			t.Fatal("expected error for empty paneID, got nil")
+		}
+	})
+
+	t.Run("empty text is no-op", func(t *testing.T) {
+		// Should return nil without invoking tmux (no live server needed).
+		err := SendLiteral("%1", "")
+		if err != nil {
+			t.Fatalf("expected nil for empty text, got %v", err)
+		}
+	})
+}
+
+// TestSendKeyNameValidation checks that SendKeyName rejects invalid arguments.
+func TestSendKeyNameValidation(t *testing.T) {
+	t.Run("empty paneID", func(t *testing.T) {
+		err := SendKeyName("", "Enter")
+		if err == nil {
+			t.Fatal("expected error for empty paneID, got nil")
+		}
+	})
+
+	t.Run("empty key name", func(t *testing.T) {
+		err := SendKeyName("%1", "")
+		if err == nil {
+			t.Fatal("expected error for empty key name, got nil")
+		}
+	})
+}
+
+// TestPaneAliveValidation checks that PaneAlive rejects an empty paneID.
+func TestPaneAliveValidation(t *testing.T) {
+	t.Run("empty paneID", func(t *testing.T) {
+		_, err := PaneAlive("")
+		if err == nil {
+			t.Fatal("expected error for empty paneID, got nil")
+		}
+	})
+}
+
+// TestPaneIDInList exercises the match logic used by PaneAlive independently
+// of the live tmux server.
+func TestPaneIDInList(t *testing.T) {
+	panes := []Pane{
+		{ID: "%0", Session: "s", WindowIndex: 0, WindowName: "w", Index: 0},
+		{ID: "%1", Session: "s", WindowIndex: 0, WindowName: "w", Index: 1},
+		{ID: "%42", Session: "s", WindowIndex: 1, WindowName: "w", Index: 0},
+	}
+
+	cases := []struct {
+		id   string
+		want bool
+	}{
+		{"%0", true},
+		{"%1", true},
+		{"%42", true},
+		{"%99", false},
+		{"", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.id, func(t *testing.T) {
+			if got := paneIDInList(tc.id, panes); got != tc.want {
+				t.Errorf("paneIDInList(%q) = %v, want %v", tc.id, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestPaneIDInListEmpty verifies behaviour with an empty pane list.
+func TestPaneIDInListEmpty(t *testing.T) {
+	if paneIDInList("%1", nil) {
+		t.Error("expected false for empty list, got true")
+	}
+}
