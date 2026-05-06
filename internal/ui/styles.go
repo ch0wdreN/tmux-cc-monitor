@@ -6,11 +6,8 @@ var (
 	// styleHeader is used for the top-level application header.
 	styleHeader = lipgloss.NewStyle().Bold(true)
 
-	// styleSectionPermission is the section header for waiting_permission.
-	styleSectionPermission = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("9")) // bright red
-
-	// styleSectionWaitingOther is the section header for waiting_other.
-	styleSectionWaitingOther = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("11")) // bright yellow
+	// styleSectionAction is the section header for waiting_action.
+	styleSectionAction = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("14")) // bright cyan
 
 	// styleSectionNeutral is the section header for running and idle.
 	styleSectionNeutral = lipgloss.NewStyle().Bold(true).Faint(true)
@@ -27,11 +24,11 @@ var (
 	// styleErrorBanner is used for the send-failure banner in input mode.
 	styleErrorBanner = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
 
-	// styleBadgePermission is the badge for waiting_permission status.
-	styleBadgePermission = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
+	// styleBadgeAction is the badge for waiting_action status.
+	styleBadgeAction = lipgloss.NewStyle().Foreground(lipgloss.Color("14")).Bold(true)
 
 	// styleBadgeWaiting is the badge for waiting_other status.
-	styleBadgeWaiting = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
+	styleBadgeWaiting = lipgloss.NewStyle().Faint(true)
 
 	// styleBadgeRunning is the badge for running status.
 	styleBadgeRunning = lipgloss.NewStyle().Foreground(lipgloss.Color("10")) // bright green

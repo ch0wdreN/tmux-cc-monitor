@@ -346,10 +346,6 @@ func mapKey(msg tea.KeyMsg) keyMapResult {
 			return keyMapResult{action: actionReserved}
 		}
 		text := string(msg.Runes)
-		// 'q' is reserved as quit in mirror mode.
-		if !msg.Alt && text == "q" {
-			return keyMapResult{action: actionQuit}
-		}
 		if msg.Alt && len(msg.Runes) == 1 {
 			// Alt+rune: send as key name "M-<rune>".
 			return keyMapResult{action: actionSendKeyName, keyName: "M-" + string(msg.Runes[0])}
@@ -420,7 +416,7 @@ func (m model) viewMirror() string {
 	var b strings.Builder
 
 	// Header line.
-	header := fmt.Sprintf("mirror: %s  (q/Esc → list)", m.mirror.paneID)
+	header := fmt.Sprintf("mirror: %s  (Esc → list)", m.mirror.paneID)
 	b.WriteString(styleMirrorHeader.Render(header))
 	b.WriteString("\n")
 
@@ -444,7 +440,7 @@ func (m model) viewMirror() string {
 		footerText = m.mirror.warnMsg
 		b.WriteString(styleMirrorWarn.Render(footerText))
 	default:
-		footerText = "q/Esc → list · keys forwarded to target pane"
+		footerText = "esc back · keys forwarded to target pane"
 		b.WriteString(styleMirrorFooter.Render(footerText))
 	}
 

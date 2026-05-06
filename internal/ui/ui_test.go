@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -20,17 +21,17 @@ func TestGroupByStatus(t *testing.T) {
 	states := []*state.State{
 		{PaneID: "%1", Status: state.StatusIdle, UpdatedAt: older},
 		{PaneID: "%2", Status: state.StatusIdle, UpdatedAt: newer},
-		{PaneID: "%3", Status: state.StatusWaitingPermission, UpdatedAt: older},
-		{PaneID: "%4", Status: state.StatusWaitingPermission, UpdatedAt: newer},
+		{PaneID: "%3", Status: state.StatusWaitingAction, UpdatedAt: older},
+		{PaneID: "%4", Status: state.StatusWaitingAction, UpdatedAt: newer},
 		{PaneID: "%5", Status: state.StatusRunning, UpdatedAt: older},
 		{PaneID: "%6", Status: state.StatusWaitingOther, UpdatedAt: older},
 	}
 
 	sections := groupByStatus(states)
 
-	// Section order: WaitingPermission, WaitingOther, Running, Idle
+	// Section order: WaitingAction, WaitingOther, Running, Idle
 	wantStatuses := []state.Status{
-		state.StatusWaitingPermission,
+		state.StatusWaitingAction,
 		state.StatusWaitingOther,
 		state.StatusRunning,
 		state.StatusIdle,
@@ -41,16 +42,16 @@ func TestGroupByStatus(t *testing.T) {
 		}
 	}
 
-	// WaitingPermission section: 2 items, sorted newer first
+	// WaitingAction section: 2 items, sorted newer first
 	permSec := sections[0]
 	if len(permSec.items) != 2 {
-		t.Fatalf("permission section: got %d items, want 2", len(permSec.items))
+		t.Fatalf("action section: got %d items, want 2", len(permSec.items))
 	}
 	if permSec.items[0].PaneID != "%4" {
-		t.Errorf("permission[0].PaneID = %q, want %%4 (newer)", permSec.items[0].PaneID)
+		t.Errorf("action[0].PaneID = %q, want %%4 (newer)", permSec.items[0].PaneID)
 	}
 	if permSec.items[1].PaneID != "%3" {
-		t.Errorf("permission[1].PaneID = %q, want %%3 (older)", permSec.items[1].PaneID)
+		t.Errorf("action[1].PaneID = %q, want %%3 (older)", permSec.items[1].PaneID)
 	}
 
 	// WaitingOther section: 1 item
@@ -93,29 +94,29 @@ func TestGroupByStatusEmpty(t *testing.T) {
 	}
 }
 
-// TestHumanizeDuration covers the four time bands.
+// TestHumanizeDuration covers the four time bands with boundary values.
 func TestHumanizeDuration(t *testing.T) {
 	tests := []struct {
+		name string
 		d    time.Duration
 		want string
 	}{
-		{0, "0s"},
-		{1 * time.Second, "1s"},
-		{59 * time.Second, "59s"},
-		{60 * time.Second, "1m"},
-		{90 * time.Second, "1m"},
-		{59*time.Minute + 59*time.Second, "59m"},
-		{60 * time.Minute, "1h"},
-		{23*time.Hour + 59*time.Minute, "23h"},
-		{24 * time.Hour, "1d"},
-		{48 * time.Hour, "2d"},
-		{-1 * time.Second, "0s"}, // negative clamped to 0
+		{"zero", 0, "<1m"},
+		{"30s", 30 * time.Second, "<1m"},
+		{"59s", 59 * time.Second, "<1m"},
+		{"1m", time.Minute, "1m"},
+		{"59m", 59 * time.Minute, "59m"},
+		{"1h", time.Hour, "1h"},
+		{"23h", 23 * time.Hour, "23h"},
+		{"24h", 24 * time.Hour, "1d"},
+		{"negative", -time.Second, "<1m"},
 	}
-	for _, tc := range tests {
-		got := humanizeDuration(tc.d)
-		if got != tc.want {
-			t.Errorf("humanizeDuration(%v) = %q, want %q", tc.d, got, tc.want)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := humanizeDuration(tt.d); got != tt.want {
+				t.Errorf("humanizeDuration(%v) = %q, want %q", tt.d, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -146,11 +147,12 @@ func TestTruncateMessage(t *testing.T) {
 
 // --- mirror key mapping tests ---
 
-// TestMapKeyReservedKeys verifies that q, Esc, and F1 are NOT forwarded.
+// TestMapKeyReservedKeys verifies that Esc and F1 are NOT forwarded.
+// Note: q is intentionally NOT in this list — since v0.0.2 q is forwarded
+// to the target pane as a literal character (actionSendLiteral).
 func TestMapKeyReservedKeys(t *testing.T) {
 	reserved := []tea.KeyMsg{
 		{Type: tea.KeyEsc},
-		{Type: tea.KeyRunes, Runes: []rune{'q'}},
 		{Type: tea.KeyF1},
 	}
 	for _, msg := range reserved {
@@ -162,11 +164,12 @@ func TestMapKeyReservedKeys(t *testing.T) {
 	}
 }
 
-// TestMapKeyQuitActions verifies that q and Esc produce actionQuit.
+// TestMapKeyQuitActions verifies that Esc produces actionQuit.
+// Note: q is NOT in this list — since v0.0.2 q is forwarded to the target
+// pane as actionSendLiteral. Only Esc exits mirror mode.
 func TestMapKeyQuitActions(t *testing.T) {
 	tests := []tea.KeyMsg{
 		{Type: tea.KeyEsc},
-		{Type: tea.KeyRunes, Runes: []rune{'q'}},
 	}
 	for _, msg := range tests {
 		result := mapKey(msg)
@@ -731,20 +734,67 @@ func TestUpdateMirrorDropSetsWarn(t *testing.T) {
 	}
 }
 
+// TestStatusBadge_Action verifies that statusBadge for StatusWaitingAction
+// contains "[ACTION]".
+func TestStatusBadge_Action(t *testing.T) {
+	got := statusBadge(state.StatusWaitingAction)
+	if !strings.Contains(got, "[ACTION]") {
+		t.Errorf("statusBadge(StatusWaitingAction) = %q, want to contain %q", got, "[ACTION]")
+	}
+}
+
+// TestGroupByStatus_ActionWaitingTitle verifies that sections[0].title is
+// "Action Waiting".
+func TestGroupByStatus_ActionWaitingTitle(t *testing.T) {
+	sections := groupByStatus(nil)
+	if sections[0].title != "Action Waiting" {
+		t.Errorf("sections[0].title = %q, want %q", sections[0].title, "Action Waiting")
+	}
+}
+
+// TestUpdate_RedrawTickMsg verifies that Update(redrawTickMsg{}) returns the
+// model unchanged and a non-nil Cmd (the next scheduled tick).
+func TestUpdate_RedrawTickMsg(t *testing.T) {
+	m := newModel(nil, 0)
+	m.cursor = 0
+
+	newM, cmd := m.Update(redrawTickMsg{})
+
+	nm, ok := newM.(model)
+	if !ok {
+		t.Fatalf("Update returned %T, want model", newM)
+	}
+	if nm.cursor != m.cursor {
+		t.Errorf("cursor changed: got %d, want %d", nm.cursor, m.cursor)
+	}
+	if cmd == nil {
+		t.Error("Update(redrawTickMsg) returned nil cmd, want next tick")
+	}
+}
+
+// TestModel_InitSchedulesRedrawTick verifies that Init returns a non-nil Cmd
+// (tea.Batch containing at minimum scheduleRedrawTick).
+func TestModel_InitSchedulesRedrawTick(t *testing.T) {
+	m := newModel(nil, 0)
+	if cmd := m.Init(); cmd == nil {
+		t.Error("Init returned nil cmd, want batch with redraw tick")
+	}
+}
+
 // errCapture is a small typed error for TestUpdateCaptureResultErrorChecksPaneAlive.
 type errCapture string
 
 func (e errCapture) Error() string { return string(e) }
 
-// TestMirrorQuitTriggersReload verifies that exiting mirror mode via q/Esc both
+// TestMirrorQuitTriggersReload verifies that exiting mirror mode via Esc
 // transitions to modeList and fires a non-nil reload Cmd, so the list view is
 // refreshed before being shown again.
+// Note: q no longer exits mirror mode (v0.0.2); it is forwarded to the target pane.
 func TestMirrorQuitTriggersReload(t *testing.T) {
 	cases := []struct {
 		desc string
 		msg  tea.KeyMsg
 	}{
-		{"q exits mirror with reload", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}},
 		{"Esc exits mirror with reload", tea.KeyMsg{Type: tea.KeyEsc}},
 	}
 
