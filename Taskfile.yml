@@ -1,0 +1,37 @@
+version: '3'
+
+vars:
+  BUILD_DIR: ./bin
+  INSTALL_DIR: '{{.HOME}}/.config/tmux-cc-monitor/bin'
+
+tasks:
+  default:
+    desc: List all available tasks
+    silent: true
+    cmds:
+      - task --list-all
+
+  build:
+    desc: Build tmux-cc-monitor and probe-hook into ./bin/
+    cmds:
+      - mkdir -p {{.BUILD_DIR}}
+      - go build -o {{.BUILD_DIR}}/tmux-cc-monitor ./cmd/tmux-cc-monitor
+      - go build -o {{.BUILD_DIR}}/probe-hook ./cmd/probe-hook
+    sources:
+      - go.mod
+      - go.sum
+      - 'cmd/**/*.go'
+      - 'internal/**/*.go'
+    generates:
+      - '{{.BUILD_DIR}}/tmux-cc-monitor'
+      - '{{.BUILD_DIR}}/probe-hook'
+
+  install:
+    desc: Install both binaries into ~/.config/tmux-cc-monitor/bin/
+    deps: [build]
+    cmds:
+      - mkdir -p {{.INSTALL_DIR}}
+      - install -m 0755 {{.BUILD_DIR}}/tmux-cc-monitor {{.INSTALL_DIR}}/tmux-cc-monitor
+      - install -m 0755 {{.BUILD_DIR}}/probe-hook {{.INSTALL_DIR}}/probe-hook
+      - 'echo "Installed to {{.INSTALL_DIR}}"'
+      - 'echo ''Add to PATH if not already - export PATH="{{.INSTALL_DIR}}:$PATH"'''

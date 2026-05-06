@@ -114,19 +114,35 @@ bind C-g display-popup -E -w 80% -h 80% 'tmux-cc-monitor ui'
 
 ### 6.4 Claude Code hook 設定スニペット
 
-`~/.claude/settings.json` の `hooks` に以下相当を追記する（イベント名・キーは実機調査後に確定 — §13 TBD 参照）:
+`~/.claude/settings.json` の `hooks` に以下を追記する。Claude Code の現行 hook スキーマは各イベントの値を `[{ matcher, hooks: [...] }]` の入れ子で受ける（`matcher` を空文字列にすると全マッチ、tool 名等を入れて絞ることも可能）:
 
 ```json
 {
   "hooks": {
-    "UserPromptSubmit": [{ "command": "tmux-cc-monitor hook UserPromptSubmit" }],
-    "Notification":     [{ "command": "tmux-cc-monitor hook Notification" }],
-    "Stop":             [{ "command": "tmux-cc-monitor hook Stop" }]
+    "UserPromptSubmit": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "tmux-cc-monitor hook UserPromptSubmit" }] }
+    ],
+    "Notification": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "tmux-cc-monitor hook Notification" }] }
+    ],
+    "Stop": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "tmux-cc-monitor hook Stop" }] }
+    ]
   }
 }
 ```
 
 スニペットは v0.0.1 の README に同梱する。`install-hooks` のような自動追記サブコマンドは v0.0.1 以降のバージョン。
+
+hook 起動の仕様（実機確認済み, 2026-05-06）:
+
+- 各 hook は shell subprocess として起動され、JSON payload は **stdin** から渡される（argv ではない）
+- 共通 payload フィールド: `session_id` / `transcript_path` / `cwd` / `permission_mode` / `hook_event_name`
+- イベント別の追加フィールド:
+  - `UserPromptSubmit`: `prompt`（送信されたユーザー入力）
+  - `Notification`: `notification_type` / `tool_name` / `tool_input`
+  - `Stop`: 追加フィールドなし
+- `$TMUX` および `$TMUX_PANE` は親プロセスから子へ継承される（tmux 内で起動された Claude Code から hook 子プロセスへ自動伝播）
 
 ## 7. API設計 (API Design)
 
@@ -184,7 +200,7 @@ bind C-g display-popup -E -w 80% -h 80% 'tmux-cc-monitor ui'
 2. Claude Code が hook (UserPromptSubmit / Notification / Stop) を発火
 3. tmux-cc-monitor hook が呼ばれる
    3a. $TMUX が空なら何もせず終了 (tmux 外)
-   3b. cwd を hook payload → os.Getwd() → tmux display-message の優先順で解決
+   3b. cwd を hook payload の `cwd` フィールドから取得（共通フィールドとして必ず存在）。欠落時のみ `os.Getwd()` フォールバック
    3c. tmux_server_pid を tmux display-message -p '#{pid}' で取得
    3d. Notification の場合は payload を見て waiting_permission / waiting_other を判定
    3e. <pane_id>.json を atomic write (tmpfile + rename)。失敗時は hook-errors.log に append し exit 1
@@ -208,13 +224,13 @@ bind C-g display-popup -E -w 80% -h 80% 'tmux-cc-monitor ui'
 | hook | 発火タイミング | 遷移後の status | 補足 |
 |---|---|---|---|
 | `UserPromptSubmit` | ユーザーがプロンプト送信直後 | `running` | — |
-| `Notification` (permission 系) | permission 待ちの通知 | `waiting_permission` | payload から permission 判定（§13 TBD） |
-| `Notification` (その他) | idle/長時間応答などの通知 | `waiting_other` | UI 上で permission セクションには出さない |
+| `Notification` (`notification_type` = `permission_prompt`) | permission 待ちの通知 | `waiting_permission` | `notification_type` フィールドの等価比較で判別。`tool_name` と `tool_input` から `<tool_name>: <tool_input compact JSON>` 形式の人間可読メッセージを `last_message` に格納 |
+| `Notification` (`notification_type` がそれ以外) | `idle_prompt` / `auth_success` / `elicitation_*` などの通知 | `waiting_other` | UI 上で permission セクションには出さない。`last_message` には `notification_type` をそのまま記録 |
 | `Stop` | 応答完了 | `idle` | — |
 
 `status` は最後に発火した hook によって上書きされる単純なステートで、状態機械としての遷移制約は持たない。Claude Code 側のイベント順序を信頼する。
 
-`Notification` の細分化判定は payload (`message` / `title` / 何らかのカテゴリフィールド) を実機で確認のうえ ADR 3 と本節に書き戻す。判定が確定するまでは `last_message` と `raw_payload` を保持しておき、判定ロジックを後付けで強化できるようにする。
+`notification_type` フィールドが Claude Code により提供されるため、文字列マッチではなく明示的な enum 値で判別する。`notification_type` の取りうる値は `permission_prompt` / `idle_prompt` / `auth_success` / `elicitation_dialog` / `elicitation_complete` / `elicitation_response`。`raw_payload` は将来の判定ロジック改善（例: `tool_input` をより詳細に分解した permission UX）に備えて保持し続ける。
 
 ### 8.4 cleanup の race 対策
 
@@ -285,16 +301,16 @@ cleanup 中に新規 pane の hook が走るレースを避けるため、削除
 | `tmux kill-server` 後の `%N` 世代衝突によるファイル誤上書き / cleanup 漏れ | High | `tmux_server_pid` を状態ファイルに含め、cleanup で世代不一致を一律削除 |
 | permission UI の選択肢に対する `y`/`n` ショートカット未実装 | Low | v0.0.1 以降のバージョン で詰める前提（送信内容の決定が UI バリエーションに依存するため、実装しながら調整する想定） |
 
-> ⚠️ TBD: Claude Code が hook に渡す payload 仕様（cwd / message / 種別フィールドの有無）は実機調査が必要。Phase 1 プロトタイプの最初のタスクとして固定し、結果を §6.4 / §8.3 / ADR 3 に書き戻す。
+> ✅ 解消済み (2026-05-06): Claude Code 公式 hook ドキュメント (https://code.claude.com/docs/en/hooks) と probe-hook (`cmd/probe-hook`) による実機ダンプで仕様を確定。結果を §6.4 / §8.3 / ADR-0003 に反映済み。
 
 ## 13. 実装計画 (Implementation Plan)
 
-| フェーズ | 内容 | 期限 |
+| フェーズ | 内容 | 状態 |
 |---|---|---|
-| 0. hook 仕様の実機調査 | Claude Code の hook payload・環境変数・cwd 引き渡し有無・呼び出しタイミングを実機確認し、Design Doc と ADR 3 に書き戻す | 未定 |
-| 1. プロトタイプ | hook バイナリと最小 bubbletea UI を疎通、`send-keys` 1 コマンド送信の頑健性を確認、ステイル除去（pane / kill-server）を実装 | 未定 |
-| 2. UI 仕上げ | 分割表示・ソート・入力欄・大量テキスト時の `paste-buffer` フォールバック・hook-errors.log フッタ表示を実装 | 未定 |
-| 3. v0.0.1 リリース | 受け入れ基準の項目をすべて満たした状態で個人運用開始 | 未定 |
+| 0. hook 仕様の実機調査 | Claude Code の hook payload・環境変数・cwd 引き渡し有無・呼び出しタイミングを実機確認 | ✅ 完了 (2026-05-06、公式ドキュメント + `cmd/probe-hook` で確認、結果を §6.4 / §8.3 / ADR-0003 に反映) |
+| 1. プロトタイプ | hook バイナリと最小 bubbletea UI を疎通、`send-keys` 1 コマンド送信の頑健性を確認、ステイル除去（pane / kill-server）を実装 | ✅ 完了 (2026-05-06) |
+| 2. UI 仕上げ | 分割表示・ソート・入力欄・大量テキスト時の `paste-buffer` フォールバック・hook-errors.log フッタ表示を実装 | ✅ 完了 (2026-05-06) |
+| 3. v0.0.1 リリース | 受け入れ基準の項目をすべて満たした状態で個人運用開始 | ✅ 完了 (2026-05-06、PR #2) |
 | 4. v0.0.1 以降のバージョン | permission ショートカット、status-line デーモン化を必要に応じて追加 | 未定 |
 
 ## 14. 参考資料 (References)
