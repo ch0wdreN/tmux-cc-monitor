@@ -760,6 +760,32 @@ func TestViewList_RunningHeaderUsesGreenStyle(t *testing.T) {
 	}
 }
 
+// TestViewList_WaitingHeaderUsesYellowStyle verifies that viewList renders the
+// "Waiting (other)" section header using styleSectionWaiting (bright yellow + bold).
+// The section is the fallback for unknown notification_type, and yellow signals
+// "unexpected — investigate" without screaming red.
+func TestViewList_WaitingHeaderUsesYellowStyle(t *testing.T) {
+	now := time.Now()
+	states := []*state.State{
+		{
+			PaneID:    "%11",
+			Status:    state.StatusWaitingOther,
+			CWD:       "/home/user/project",
+			UpdatedAt: now.Add(-2 * time.Minute),
+		},
+	}
+	m := newModel(states, 0)
+	m.width = 120
+	m.height = 40
+
+	output := m.viewList()
+
+	want := styleSectionWaiting.Render("── Waiting (other) ──")
+	if !strings.Contains(output, want) {
+		t.Errorf("viewList() output does not contain styleSectionWaiting-rendered header.\nwant substring: %q\ngot: %q", want, output)
+	}
+}
+
 // TestGroupByStatus_ActionWaitingTitle verifies that sections[0].title is
 // "Action Waiting".
 func TestGroupByStatus_ActionWaitingTitle(t *testing.T) {

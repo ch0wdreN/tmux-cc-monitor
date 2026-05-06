@@ -413,7 +413,7 @@ func (m model) viewMirror() string {
 	var b strings.Builder
 
 	// Header line.
-	header := fmt.Sprintf("mirror: %s  (Ctrl-G → list)", m.mirror.paneID)
+	header := fmt.Sprintf("mirror: %s  (ctrl-g → list)", m.mirror.paneID)
 	b.WriteString(styleMirrorHeader.Render(header))
 	b.WriteString("\n")
 

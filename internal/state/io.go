@@ -138,6 +138,19 @@ func ReadAll() (states []*State, warnings []string, err error) {
 			continue
 		}
 
+		// Defensive: any status value the UI does not know how to group must
+		// be skipped with a warning rather than silently dropped by groupByStatus.
+		switch s.Status {
+		case StatusWaitingAction, StatusWaitingOther, StatusRunning, StatusIdle:
+			// valid; fall through to append
+		default:
+			warnings = append(warnings, fmt.Sprintf(
+				"state: ReadAll: skipping %q: unknown status %q",
+				fpath, s.Status,
+			))
+			continue
+		}
+
 		states = append(states, &s)
 	}
 

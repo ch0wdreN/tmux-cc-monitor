@@ -66,7 +66,8 @@ v0.0.1 リリース後の実利用を通じて以下の不満が浮上した:
 - [ ] `humanizeDuration(<1m)` が `"<1m"` を返す (unit test)
 - [ ] 60 秒間隔の `redrawTickMsg` が schedule され、受信時に view が再描画される (model test、`time.Now()` 評価が反映されることを確認)
 - [ ] hook の Notification 分類が §6.5 の表のとおりに振り分けられる (`internal/hook/hook_test.go` の table-driven test)
-- [ ] `Waiting (other)` セクション見出しが faint で描画される (`styleSectionNeutral` 適用)
+- [ ] `Waiting (other)` セクション見出しが bright yellow (color "11") bold で描画される (`styleSectionWaiting` 適用、`internal/ui/ui_test.go` で検証)
+- [ ] `state.ReadAll` が未知の `status` 値を含む state ファイルを検出した場合、warning を append し当該 state を skip する (`internal/state/state_test.go` で検証)
 - [ ] `task verify` が緑
 
 ## 6. システム設計
@@ -76,9 +77,9 @@ v0.0.1 リリース後の実利用を通じて以下の不満が浮上した:
 | ファイル | 変更内容 |
 |---|---|
 | `internal/state/state.go` | `Status` 定数リネーム / 値変更 / 旧値の取り扱いコメント |
-| `internal/state/io.go` | `ReadAll` で旧値 `"waiting_permission"` 検出時に errlog warn + skip |
+| `internal/state/io.go` | `ReadAll` で旧値 `"waiting_permission"` 検出時に errlog warn + skip。加えて未知の `status` 値も同様に warn + skip (`groupByStatus` での silent drop を防ぐ防御的バリデーション) |
 | `internal/hook/hook.go` | `classifyEvent` の Notification 分岐を §6.5 の表のとおりに刷新 |
-| `internal/ui/styles.go` | `styleSectionPermission` → `styleSectionAction` (cyan 14 bold) / `styleSectionRunning` を新設 (bright green 10 bold) / `styleSectionWaitingOther` を削除し `styleSectionNeutral` で代替 / 行バッジ用 `styleBadgeAction` `styleBadgeWaiting` `styleBadgeRunning` `styleBadgeIdle` を全削除 (バッジ自体撤廃) |
+| `internal/ui/styles.go` | `styleSectionPermission` → `styleSectionAction` (cyan 14 bold) / `styleSectionRunning` を新設 (bright green 10 bold) / `styleSectionWaitingOther` (旧 yellow 11) を `styleSectionWaiting` (yellow 11 bold) として再定義 / `styleSectionNeutral` は Idle 専用に / 行バッジ用 `styleBadgeAction` `styleBadgeWaiting` `styleBadgeRunning` `styleBadgeIdle` を全削除 (バッジ自体撤廃) |
 | `internal/ui/ui.go` | section title `"Permission Waiting"` → `"Action Waiting"` / `Running` セクション見出しに `styleSectionRunning` 適用 / 行ごとのステータスバッジ (`[PERM]` / `[ACTION]` / `[WAIT]` / `[RUN]` / `[IDLE]`) を完全削除し `statusBadge` 関数も撤廃。行描画 format と `msgWidth` を追従 / 60s redraw tick 追加 / `humanizeDuration` 粒度変更 / footer help 更新 |
 | `internal/ui/mirror.go` | `q` および `Esc` を target pane に forward (`Esc` は `tmux send-keys ... Escape` として送る)。新たに `Ctrl+G` を唯一の list 復帰キーとして追加。footer 文字列も `ctrl-g → list` に更新 |
 | `internal/ui/ui_test.go` 他 | 上記の検証テスト追加・更新 |
@@ -90,12 +91,12 @@ v0.0.1 リリース後の実利用を通じて以下の不満が浮上した:
 | 要素 | Before (v0.0.1) | After (v0.0.2) |
 |---|---|---|
 | `Action Waiting` 見出し (旧 `Permission Waiting`) | `Permission Waiting` (red 9, bold) | `Action Waiting` (cyan 14, bold) |
-| `Waiting (other)` 見出し | yellow 11, bold | `styleSectionNeutral` (faint) |
+| `Waiting (other)` 見出し | yellow 11, bold | yellow 11, bold (継続。fallback 専用化されてもユーザーに気付いてほしいため) |
 | `Running` 見出し | (バッジ green、見出しは `styleSectionNeutral` faint) | **bright green (10), bold** で見出しをハイライト |
 | `Idle` 見出し | faint | 変更なし |
 | 行ごとのステータスバッジ (`[PERM]` / `[WAIT]` / `[RUN]` / `[IDLE]`) | 各行末尾に色付きで表示 | **完全削除**。状態識別はセクション見出しの色に集約 |
 
-(意図) 「注目すべき状態」(ユーザーが対応すべき = `Action Waiting` cyan、現在動いている = `Running` green) をセクション見出しの色だけで表現する。`Waiting (other)` と `Idle` は静かな faint。行ごとのバッジは section に分かれている時点でカテゴリ識別が済んでいるため重複情報となり、削除して message 表示領域を広げる。
+(意図) 「注目すべき状態」(ユーザーが対応すべき = `Action Waiting` cyan、現在動いている = `Running` green、Claude Code が新しい未知 subtype を出したシグナル = `Waiting (other)` yellow) をセクション見出しの色で表現する。`Waiting (other)` は通常空であることが期待値だが、出現したら Claude Code 側の仕様変更を意味するため neutral ではなく yellow で目立たせる。`Idle` は静かな faint。行ごとのバッジは section に分かれている時点でカテゴリ識別が済んでいるため重複情報となり、削除して message 表示領域を広げる。
 
 ### 6.3 Status リネーム
 

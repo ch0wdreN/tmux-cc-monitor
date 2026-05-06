@@ -321,6 +321,48 @@ func TestReadAll_LegacyWaitingPermissionIsSwept(t *testing.T) {
 	}
 }
 
+// TestReadAll_UnknownStatusIsSwept verifies that a state file with a status
+// value not in the known set (waiting_action / waiting_other / running / idle)
+// is skipped with a warning, rather than silently dropped by groupByStatus.
+func TestReadAll_UnknownStatusIsSwept(t *testing.T) {
+	tmpXDG := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmpXDG)
+
+	dir, err := state.SessionsDir()
+	if err != nil {
+		t.Fatalf("SessionsDir: %v", err)
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	unknown := map[string]any{
+		"schema_version":  state.SchemaVersion,
+		"tmux_server_pid": 1,
+		"pane_id":         "%30",
+		"status":          "totally_made_up_value",
+		"updated_at":      "2026-05-06T10:00:00Z",
+	}
+	data, _ := json.Marshal(unknown)
+	if err := os.WriteFile(filepath.Join(dir, "30.json"), data, 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	states, warnings, err := state.ReadAll()
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+
+	if len(states) != 0 {
+		t.Errorf("expected 0 states, got %d", len(states))
+	}
+	if len(warnings) != 1 {
+		t.Errorf("expected 1 warning, got %d: %v", len(warnings), warnings)
+	} else if !strings.Contains(warnings[0], `unknown status "totally_made_up_value"`) {
+		t.Errorf("warning does not mention unknown status: %q", warnings[0])
+	}
+}
+
 // TestReadAll_SortedByPaneID verifies that ReadAll returns states sorted by
 // the numeric portion of PaneID (so %2 sorts before %10, not after).
 func TestReadAll_SortedByPaneID(t *testing.T) {

@@ -399,6 +399,8 @@ func (m model) viewList() string {
 		switch i {
 		case 0:
 			b.WriteString(styleSectionAction.Render(header))
+		case 1:
+			b.WriteString(styleSectionWaiting.Render(header))
 		case 2:
 			b.WriteString(styleSectionRunning.Render(header))
 		default:

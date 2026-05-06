@@ -12,7 +12,12 @@ var (
 	// styleSectionRunning is the section header for running status.
 	styleSectionRunning = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("10")) // bright green
 
-	// styleSectionNeutral is the section header for waiting_other and idle.
+	// styleSectionWaiting is the section header for waiting_other status. It is
+	// highlighted in yellow so unknown notification_type subtypes (the only
+	// reason a pane lands here in v0.0.2+) are visible at a glance.
+	styleSectionWaiting = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("11")) // bright yellow
+
+	// styleSectionNeutral is the section header for idle status.
 	styleSectionNeutral = lipgloss.NewStyle().Bold(true).Faint(true)
 
 	// styleNone is the "(none)" placeholder when a section has no items.
