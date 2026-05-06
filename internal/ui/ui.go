@@ -210,7 +210,14 @@ func reloadStates() tea.Msg {
 		cleanup.Run(serverPID, livePaneIDs) //nolint:errcheck
 	}
 
-	states, _, _ := state.ReadAll() //nolint:errcheck
+	// Forward state.ReadAll warnings (schema_version mismatch, JSON corruption,
+	// etc.) to hook-errors.log. Stderr is unsafe inside a popup because it would
+	// corrupt the rendered TUI; the log is the only durable observation channel
+	// for reload-time anomalies.
+	states, warnings, _ := state.ReadAll() //nolint:errcheck
+	for _, w := range warnings {
+		_ = errlog.Append("", "reload-warning", w)
+	}
 
 	errCount, err := errlog.RecentCount()
 	if err != nil {
