@@ -55,6 +55,27 @@
         }
       ]
     },
+    "infrastructure": {
+      "description": "インフラ・デプロイ・CI/CD・クラウド",
+      "adrs": [
+        {
+          "id": "20260507-adopt-source-build-for-tpm-install",
+          "title": "TPM インストール時にソースビルド方式を採用する",
+          "status": "accepted",
+          "date": "2026-05-07",
+          "file": "docs/adr/20260507-adopt-source-build-for-tpm-install.md",
+          "summary": "GitHub Releases のプリビルド配布ではなく go build でソースからビルドする方式を採用。リリースパイプラインの構築・維持コストを回避する。"
+        },
+        {
+          "id": "20260507-place-binary-inside-plugin-directory",
+          "title": "ビルド済みバイナリを TPM プラグインディレクトリ内に配置する",
+          "status": "accepted",
+          "date": "2026-05-07",
+          "file": "docs/adr/20260507-place-binary-inside-plugin-directory.md",
+          "summary": "バイナリを ~/.config ではなく TPM プラグインディレクトリ内に配置。TPM アンインストール時の自動クリーンアップと task install との干渉回避を実現する。"
+        }
+      ]
+    },
     "dependency": {
       "description": "外部ライブラリ・サービス・依存関係選定",
       "adrs": [
