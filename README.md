@@ -15,52 +15,69 @@ back at the pane you came from, untouched.
 - tmux 3.2+ (`display-popup -E` is required)
 - Claude Code with hooks support
 
-## Build
+## Install
+
+### Option A: TPM (recommended)
+
+If you use [TPM (Tmux Plugin Manager)](https://github.com/tmux-plugins/tpm), add the plugin line
+to `~/.tmux.conf` (above the TPM `run -b ...` line):
+
+```tmux
+set -g @plugin 'ch0wdreN/tmux-cc-monitor'
+```
+
+Then press `prefix + I` to install. The plugin builds the binary from source on install
+(Go must be available in `$PATH`) and binds the popup to `prefix + C-g` automatically.
+
+The binary lives at `~/.tmux/plugins/tmux-cc-monitor/bin/tmux-cc-monitor`. Add it to your
+`$PATH` so Claude Code hooks can resolve `tmux-cc-monitor`:
+
+```sh
+export PATH="$HOME/.tmux/plugins/tmux-cc-monitor/bin:$PATH"
+```
+
+#### Customizing the binding and popup size
+
+These tmux options override the defaults; place them in `~/.tmux.conf` before the TPM
+`run -b ...` line:
+
+```tmux
+set -g @cc-monitor-key          'M-g'   # default: C-g
+set -g @cc-monitor-popup-width  '60%'   # default: 80%
+set -g @cc-monitor-popup-height '50%'   # default: 80%
+```
+
+### Option B: Manual (`task install`)
 
 This project uses [Task](https://taskfile.dev/) for build automation. With `task` installed:
 
 ```sh
-task build         # builds ./bin/tmux-cc-monitor and ./bin/probe-hook
+task install
 ```
 
-If you prefer not to install Task, the equivalent raw commands are:
+This builds and copies the binaries to `~/.config/tmux-cc-monitor/bin/`. Add that directory
+to your `$PATH`:
+
+```sh
+export PATH="$HOME/.config/tmux-cc-monitor/bin:$PATH"
+```
+
+You also need to add the popup keybinding to `~/.tmux.conf` manually:
+
+```tmux
+bind C-g display-popup -E -w 80% -h 80% 'tmux-cc-monitor ui'
+```
+
+If you do not want to install Task, the raw build commands are:
 
 ```sh
 go build -o ./bin/tmux-cc-monitor ./cmd/tmux-cc-monitor
 go build -o ./bin/probe-hook      ./cmd/probe-hook
 ```
 
-## Install
-
-```sh
-task install
-```
-
-This builds the binaries and copies them to `~/.config/tmux-cc-monitor/bin/`,
-which keeps everything related to this tool (binaries, `sessions/`, `hook-errors.log`)
-under a single directory tree. Add that directory to your `$PATH`:
-
-```sh
-export PATH="$HOME/.config/tmux-cc-monitor/bin:$PATH"
-```
-
-`tmux-cc-monitor` must be on your `$PATH` for both the tmux popup keybinding and
-the Claude Code hook configuration to find it.
-
 ## Configuration
 
-### 1. tmux popup keybinding
-
-Add the following to `~/.tmux.conf`:
-
-```tmux
-bind C-g display-popup -E -w 80% -h 80% 'tmux-cc-monitor ui'
-```
-
-`-E` causes the popup to close automatically when the TUI exits. The close key (`q` / `esc`) is
-handled by the bubbletea app; pressing it returns you to the calling pane.
-
-### 2. Claude Code hook configuration
+### Claude Code hook configuration
 
 Merge the following into `~/.claude/settings.json` (or the project-local `.claude/settings.json`).
 `tmux-cc-monitor` must be on your `$PATH` so the hook can find it.
@@ -144,6 +161,9 @@ Both are handled in the mirror view:
 - v0.0.2 refactor (status rename to *Action Waiting*, `q` forwarded in mirror, decoupled view
   redraw tick): see
   [docs/design-doc/20260506_tmux_cc_monitor_v002_refactor_design.md](docs/design-doc/20260506_tmux_cc_monitor_v002_refactor_design.md).
+- TPM plugin support (source build on install, default `prefix + C-g` binding, customizable via
+  `@cc-monitor-*` options): see
+  [docs/design-doc/20260507_tmux_cc_monitor_tpm_support_design.md](docs/design-doc/20260507_tmux_cc_monitor_tpm_support_design.md).
 - All accepted ADRs are indexed in [docs/adr/adr-index.json](docs/adr/adr-index.json).
 
 ## License
